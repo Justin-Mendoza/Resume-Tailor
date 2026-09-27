@@ -79,20 +79,27 @@ async function analyze(req, res) {
     projects: resume.projects.map(project => ({ entryId: project.entryId, technologies: project.techSkillIds.map(id => ({ id, label: profile.skills.find(skill => skill.id === id).label })) })),
     entries: relevantBullets
   };
-  let warning = '';
-  let suggestions;
-  try {
-    const rawEdits = await provider.suggestEdits({ jobTitle, jobCategory: analysis.job_category, keywords: analysis.important_keywords, missingButVerified: relevantSkills.filter(skill => analysis.missing_but_verified.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), unsupported: analysis.unsupported_keywords, selectedResume });
-    suggestions = validateSuggestions(rawEdits?.suggested_changes, analysis, profile, resume);
-  } catch (error) {
-    warning = `Qwen's edit suggestions were unavailable: ${error.message}. Showing safe verified suggestions.`;
-    suggestions = [];
-  }
-  if (!suggestions.length) suggestions = fallbackSuggestions(analysis, profile, resume);
-  if (!suggestions.length && !warning) warning = 'No safe content change was found for this posting. You can still compile the best matching base resume.';
+  const editInput = { jobTitle, jobCategory: analysis.job_category, keywords: analysis.important_keywords, missingButVerified: relevantSkills.filter(skill => analysis.missing_but_verified.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), unsupported: analysis.unsupported_keywords, selectedResume };
+  const suggestions = fallbackSuggestions(analysis, profile, resume);
+  const warning = suggestions.length ? '' : 'No safe content change was found for this posting. You can still compile the best matching base resume.';
   const id = randomUUID();
-  sessions.set(id, { created: Date.now(), profile, resume, changes: suggestions, analysis, jobTitle, company, pdf: null });
+  sessions.set(id, { created: Date.now(), profile, resume, changes: suggestions, analysis, editInput, jobTitle, company, pdf: null });
   sendJson(res, 200, { analysisId: id, analysis, resumeTitle: resume.title, changes: publicChanges(suggestions), warning });
+}
+
+async function refine(req, res) {
+  const body = await readJson(req);
+  const session = sessionFor(body.analysisId);
+  try {
+    const rawEdits = await provider.suggestEdits(session.editInput);
+    const suggestions = validateSuggestions(rawEdits?.suggested_changes, session.analysis, session.profile, session.resume);
+    if (!suggestions.length) return sendJson(res, 200, { changes: publicChanges(session.changes), warning: 'Qwen proposed no valid changes. Your existing suggestions are unchanged.', replaced: false });
+    session.changes = suggestions;
+    session.pdf = null;
+    return sendJson(res, 200, { changes: publicChanges(suggestions), warning: '', replaced: true });
+  } catch {
+    return sendJson(res, 200, { changes: publicChanges(session.changes), warning: 'Qwen refinement did not finish. Your existing suggestions are unchanged.', replaced: false });
+  }
 }
 
 async function compile(req, res) {
@@ -131,6 +138,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { configured: isConfigured(profile, resumes), provider: 'Kyma · Qwen 3.8 Flash', keyConfigured: Boolean(process.env.KYMA_API_KEY), resumes: Object.values(resumes).map(({ id, title }) => ({ id, title })) });
     }
     if (req.method === 'POST' && url.pathname === '/api/analyze') return await analyze(req, res);
+    if (req.method === 'POST' && url.pathname === '/api/refine') return await refine(req, res);
     if (req.method === 'POST' && url.pathname === '/api/compile') return await compile(req, res);
     const pdfRoute = url.pathname.match(/^\/api\/(pdf|download)\/([0-9a-f-]{36})$/);
     if (req.method === 'GET' && pdfRoute) return await servePdf(res, pdfRoute[2], pdfRoute[1] === 'download');

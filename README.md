@@ -1,6 +1,6 @@
 # Resume Tailor
 
-A local web app for tailoring Justin Mendoza's three verified resume versions to a job description. Qwen 3.8 Flash analyzes the posting and suggests structured operations. The server validates those operations against `data/verified_experience.json`, shows a diff, applies only approved edits, and renders LaTeX into a PDF.
+A local web app for tailoring Justin Mendoza's three verified resume versions to a job description. Qwen 3.8 Flash analyzes the posting; the app immediately proposes structured, verified-data-only edits. You can optionally ask Qwen for alternative edits. The server validates every operation against `data/verified_experience.json`, shows a diff, applies only approved edits, and renders LaTeX into a PDF.
 
 ## Run locally
 
@@ -9,7 +9,7 @@ A local web app for tailoring Justin Mendoza's three verified resume versions to
 3. Install a local TeX distribution that provides `latexmk` or `pdflatex` and the `geometry`, `lmodern`, and `hyperref` packages. On macOS, the app also checks `/Library/TeX/texbin`, so BasicTeX works before you restart your terminal.
 4. Run `npm start` and open `http://127.0.0.1:3001`. Set `PORT` if you need a different port.
 
-No npm install is required. The server binds only to localhost. The Kyma key is read by the server and is never sent to the browser. The job description, selected resume structure, and relevant verified facts are sent to Kyma for analysis; the app does not upload PDFs or contact details. Approved PDFs are saved in the ignored `output/pdf/` directory. If Qwen's edit suggestion call is slow or unavailable, a local verified-data fallback proposes a safe edit.
+No npm install is required. The server binds only to localhost. The Kyma key is read by the server and is never sent to the browser. The job description and resume-category names go to Qwen for analysis. Selected resume structure and relevant verified facts are sent only if you click **Ask Qwen for alternatives**; the app does not upload PDFs or contact details. Approved PDFs are saved in the ignored `output/pdf/` directory. Optional Qwen refinement may time out; existing suggestions and decisions remain available if it does.
 
 ## Verified resume data
 
