@@ -1,0 +1,89 @@
+{
+  "identity": {
+    "name": "Justin Mendoza",
+    "email": "mendozajustincs@gmail.com",
+    "phone": "+1 579-366-4443",
+    "location": "",
+    "links": ["linkedin.com/in/justin-mendoza", "github.com/Justin-Mendoza"]
+  },
+  "skills": [
+    {"id":"go","label":"Go","categories":["Languages"]},
+    {"id":"python","label":"Python","categories":["Languages"]},
+    {"id":"java","label":"Java","categories":["Languages"]},
+    {"id":"typescript_js","label":"TypeScript/JavaScript","aliases":["TypeScript","JavaScript"],"categories":["Languages"]},
+    {"id":"cpp","label":"C++","categories":["Languages"]},
+    {"id":"csharp","label":"C#","categories":["Languages"]},
+    {"id":"sql","label":"SQL","categories":["Languages"]},
+    {"id":"rest_apis","label":"REST APIs","aliases":["REST API"],"categories":["Backend & Data"]},
+    {"id":"fastapi","label":"FastAPI","categories":["Backend & Data"]},
+    {"id":"spring_boot","label":"Spring Boot","categories":["Backend & Data"]},
+    {"id":"node_js","label":"Node.js","categories":["Backend & Data"]},
+    {"id":"express_js","label":"Express.js","categories":["Backend & Data"]},
+    {"id":"kafka","label":"Kafka","categories":["Backend & Data"]},
+    {"id":"opensearch","label":"OpenSearch","categories":["Backend & Data","AI & Search"]},
+    {"id":"postgresql","label":"PostgreSQL","categories":["Backend & Data"]},
+    {"id":"redis","label":"Redis","categories":["Backend & Data"]},
+    {"id":"mysql","label":"MySQL","categories":["Backend & Data"]},
+    {"id":"docker","label":"Docker","categories":["Cloud & Infrastructure","Infrastructure"]},
+    {"id":"kubernetes","label":"Kubernetes","categories":["Cloud & Infrastructure","Infrastructure"]},
+    {"id":"aws","label":"AWS","aliases":["Amazon Web Services"],"categories":["Cloud & Infrastructure","Infrastructure"]},
+    {"id":"gcp","label":"GCP","aliases":["Google Cloud Platform"],"categories":["Cloud & Infrastructure","Infrastructure"]},
+    {"id":"azure","label":"Azure","categories":["Cloud & Infrastructure","Infrastructure"]},
+    {"id":"openshift","label":"OpenShift","categories":["Cloud & Infrastructure","Infrastructure"]},
+    {"id":"jenkins","label":"Jenkins","categories":["Cloud & Infrastructure","Infrastructure"]},
+    {"id":"argocd","label":"ArgoCD","categories":["Cloud & Infrastructure","Infrastructure"]},
+    {"id":"datadog","label":"Datadog","categories":["Cloud & Infrastructure","Infrastructure"]},
+    {"id":"prisma_cloud","label":"Prisma Cloud","categories":["Cloud & Infrastructure","Infrastructure"]},
+    {"id":"rag","label":"RAG","categories":["AI & Search"]},
+    {"id":"hybrid_search","label":"Hybrid Search","categories":["AI & Search"]},
+    {"id":"bm25","label":"BM25","categories":["AI & Search"]},
+    {"id":"vector_search","label":"Vector Search","categories":["AI & Search"]},
+    {"id":"neural_reranking","label":"Neural Reranking","categories":["AI & Search"]},
+    {"id":"cohere","label":"Cohere","categories":["AI & Search"]},
+    {"id":"confluent_cloud","label":"Confluent Cloud","categories":[]},
+    {"id":"aws_ec2","label":"AWS EC2","categories":[]},
+    {"id":"vpc_tech","label":"VPC","categories":[]},
+    {"id":"s3","label":"S3","categories":[]},
+    {"id":"english","label":"English","categories":["Spoken"]},
+    {"id":"french","label":"French","categories":["Spoken"]}
+  ],
+  "experience": [
+    {
+      "id":"datadog_2026","company":"Datadog","location":"New York, NY","dates":"May 2026 – Aug. 2026",
+      "titleVariants":["Software Engineer Intern (Go, TypeScript, Kubernetes, AWS/GCP/Azure)","Software Engineer Intern - Workload Placement (Go, Kubernetes, AWS/GCP/Azure)"],
+      "bullets":[
+        {"id":"dd_gpu","text":"Surfaced $100,000+ in underutilized GPU reservations to AI Platform teams, replacing per-cloud manual audits with one view of fleet-wide capacity for 3,000+ engineers.","skillIds":["aws","gcp","azure"]},
+        {"id":"dd_ingest","text":"Engineered a provider-agnostic ingestion layer in Go correlating Datadog metrics against AWS, GCP, and Azure reservation records, so onboarding a new provider requires no rewrites.","variants":["Engineered a provider-agnostic ingestion layer in Go correlating Kubernetes and Datadog metrics with AWS, GCP, and Azure reservation records, enabling new cloud providers without rewrites."],"skillIds":["go","datadog","kubernetes","aws","gcp","azure"]},
+        {"id":"dd_chargeback","text":"Attributed idle node-hours back to the owning team as a chargeback signal, giving capacity owners a cost line they could act on.","skillIds":[]},
+        {"id":"dd_ui","text":"Shipped a TypeScript interface letting teams trace waste down to the specific reservations and clusters driving it.","skillIds":["typescript_js"]}
+      ]
+    },
+    {
+      "id":"intact_2025","company":"Intact Financial Corp.","location":"Montreal, QC","dates":"May 2025 – Aug. 2025",
+      "titleVariants":["Software Engineer Intern - DevOps (Java Spring Boot, OpenShift, Jenkins, ArgoCD)"],
+      "bullets":[
+        {"id":"if_onboard","text":"Built Java Spring Boot automation for onboarding workflows, eliminating manual provisioning steps for 20+ product teams.","variants":["Automated onboarding workflows in Java Spring Boot, removing manual provisioning steps for 20+ product teams."],"skillIds":["java","spring_boot"]},
+        {"id":"if_cicd","text":"Built and tuned CI/CD pipelines across OpenShift, Jenkins, and ArgoCD, reducing deployment time by 20% across 4 services.","skillIds":["openshift","jenkins","argocd"]},
+        {"id":"if_security","text":"Remediated 10+ critical vulnerabilities flagged by Prisma Cloud, clearing the open-findings backlog across production environments.","skillIds":["prisma_cloud"]}
+      ]
+    }
+  ],
+  "projects": [
+    {"id":"search","nameVariants":["Enterprise Search Engine","Enterprise AI Search Engine"],"bullets":[
+      {"id":"search_relevance","text":"Improved search relevance by 12% (nDCG@10) over dense-only retrieval by combining BM25, vector search, reciprocal-rank fusion, and neural reranking.","skillIds":["bm25","vector_search","neural_reranking","hybrid_search"]},
+      {"id":"search_index","text":"Indexed 10,000+ document chunks through resumable ingestion while enforcing authorization across retrieval, caching, and citations with zero cross-tenant leakage in security tests.","skillIds":["rag"]},
+      {"id":"search_load","text":"Sustained 20+ requests/sec in local API load tests while benchmarking retrieval strategies across relevance, p95 latency, throughput, and model costs.","skillIds":["fastapi"]}
+    ]},
+    {"id":"video","nameVariants":["Video Analytics Distributed System"],"bullets":[
+      {"id":"video_pipeline","text":"Engineered an event-driven pipeline streaming YouTube metrics through Confluent Cloud Kafka into a Telegram notification service.","skillIds":["kafka"]},
+      {"id":"video_services","text":"Split ingestion and delivery into independent producer and consumer services, so a downstream outage buffers in Kafka instead of dropping metrics.","skillIds":["kafka"]}
+    ]},
+    {"id":"vpc","nameVariants":["Secure AWS Virtual Private Cloud"],"bullets":[
+      {"id":"vpc_subnets","text":"Architected a segmented VPC with public and private subnets, isolating workloads so a compromised public host cannot reach private resources.","skillIds":["aws"]},
+      {"id":"vpc_peering","text":"Established VPC peering and gateway endpoints for private S3 access, keeping cross-VPC traffic off the public internet.","skillIds":["aws"]}
+    ]}
+  ],
+  "education": [
+    {"id":"concordia","school":"Concordia University","location":"Montreal, QC","degree":"Bachelor of Computer Science","dates":"Sept. 2023 – Dec. 2026","details":["Director of Competitions, Software Engineering and Computer Science Society (ran a 100+ competitor coding competition, led technical workshop programming).","Courses: Distributed Systems, Operating Systems, Algorithms, Databases, Big Data Analytics, Embedded Systems, Operations Research."]}
+  ]
+}

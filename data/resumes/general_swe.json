@@ -1,0 +1,20 @@
+{
+  "id": "general_swe",
+  "title": "General Software Engineering",
+  "skillGroups": [
+    {"label":"Languages","skillIds":["go","python","java","typescript_js","cpp","csharp","sql"]},
+    {"label":"Backend & Data","skillIds":["rest_apis","fastapi","spring_boot","node_js","express_js","kafka","opensearch","postgresql","redis","mysql"]},
+    {"label":"Cloud & Infrastructure","skillIds":["docker","kubernetes","aws","gcp","azure","openshift","jenkins","argocd","datadog"]},
+    {"label":"Spoken","skillIds":["english","french"]}
+  ],
+  "experience": [
+    {"entryId":"datadog_2026","titleVariant":0,"bulletIds":["dd_gpu","dd_ingest","dd_chargeback","dd_ui"]},
+    {"entryId":"intact_2025","titleVariant":0,"bulletIds":["if_onboard","if_cicd","if_security"]}
+  ],
+  "projects": [
+    {"entryId":"search","nameVariant":0,"techSkillIds":["python","fastapi","opensearch","postgresql","redis","cohere"],"bulletIds":["search_relevance","search_index","search_load"]},
+    {"entryId":"video","nameVariant":0,"techSkillIds":["python","kafka","confluent_cloud","rest_apis"],"bulletIds":["video_pipeline","video_services"]},
+    {"entryId":"vpc","nameVariant":0,"techSkillIds":["aws_ec2","vpc_tech","s3"],"bulletIds":["vpc_subnets","vpc_peering"]}
+  ],
+  "education": [{"entryId":"concordia"}]
+}
