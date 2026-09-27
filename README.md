@@ -7,7 +7,7 @@ A local web app for tailoring Justin Mendoza's three verified resume versions to
 1. Use Node.js 20 or newer.
 2. Put your Kyma API key in `.env` as `KYMA_API_KEY=...`. The app uses `KYMA_MODEL` if set; the default is `qwen3.8-flash`. It accepts the `qwen-3.8-flash` spelling in the current `.env` and sends Kyma's documented `qwen3.8-flash` model ID. Optionally set `KYMA_BASE_URL` for another Kyma-compatible endpoint.
 3. Install a local TeX distribution that provides `latexmk` or `pdflatex` and the `geometry`, `lmodern`, and `hyperref` packages. On macOS, the app also checks `/Library/TeX/texbin`, so BasicTeX works before you restart your terminal.
-4. Run `npm start` and open `http://127.0.0.1:3000`.
+4. Run `npm start` and open `http://127.0.0.1:3001`. Set `PORT` if you need a different port.
 
 No npm install is required. The server binds only to localhost. The Kyma key is read by the server and is never sent to the browser. The job description, selected resume structure, and relevant verified facts are sent to Kyma for analysis; the app does not upload PDFs or contact details. Approved PDFs are saved in the ignored `output/pdf/` directory. If Qwen's edit suggestion call is slow or unavailable, a local verified-data fallback proposes a safe edit.
 
