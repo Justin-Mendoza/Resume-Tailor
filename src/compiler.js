@@ -49,18 +49,21 @@ export async function compileResume(profile, resume, { company, jobTitle }) {
   const buildDir = await mkdtemp(path.join(tmpdir(), 'resume-tailor-'));
   try {
     await writeFile(path.join(buildDir, 'resume.tex'), latex, 'utf8');
+    const macTex = '/Library/TeX/texbin';
     const hasLatexmk = await commandExists('latexmk');
     const hasPdflatex = await commandExists('pdflatex');
-    if (!hasLatexmk && !hasPdflatex) throw new Error('No LaTeX compiler found. Install latexmk or pdflatex (for example, MacTeX BasicTeX), then try again.');
-    const command = hasLatexmk ? 'latexmk' : 'pdflatex';
-    const args = hasLatexmk ? ['-pdf', '-no-shell-escape', '-interaction=nonstopmode', '-halt-on-error', 'resume.tex'] : ['-no-shell-escape', '-interaction=nonstopmode', '-halt-on-error', 'resume.tex'];
+    const macLatexmk = !hasLatexmk && await access(path.join(macTex, 'latexmk')).then(() => true, () => false);
+    const macPdflatex = !hasPdflatex && await access(path.join(macTex, 'pdflatex')).then(() => true, () => false);
+    if (!hasLatexmk && !hasPdflatex && !macLatexmk && !macPdflatex) throw new Error('No LaTeX compiler found. Install latexmk or pdflatex (for example, MacTeX BasicTeX), then try again.');
+    const command = hasLatexmk ? 'latexmk' : macLatexmk ? path.join(macTex, 'latexmk') : hasPdflatex ? 'pdflatex' : path.join(macTex, 'pdflatex');
+    const args = hasLatexmk || macLatexmk ? ['-pdf', '-no-shell-escape', '-interaction=nonstopmode', '-halt-on-error', 'resume.tex'] : ['-no-shell-escape', '-interaction=nonstopmode', '-halt-on-error', 'resume.tex'];
     const result = await run(command, args, buildDir, 60000);
     if (result.code !== 0) throw new Error(`LaTeX compilation failed:\n${result.output.slice(-7000)}`);
     const pdfPath = path.join(buildDir, 'resume.pdf');
     await access(pdfPath).catch(() => { throw new Error(`LaTeX exited successfully but no PDF was produced:\n${result.output.slice(-4000)}`); });
     const pages = await pageCount(pdfPath);
     if (pages !== null && pages !== 1) throw new Error(`The tailored resume is ${pages} pages. Reject a lengthening edit or adjust the local template before saving.`);
-    const outputDir = path.join(root, 'output');
+    const outputDir = path.join(root, 'output', 'pdf');
     await mkdir(outputDir, { recursive: true });
     const base = outputFilename(profile.identity.name, company, jobTitle);
     let filename = base, index = 2;

@@ -4,7 +4,8 @@
     "email": "mendozajustincs@gmail.com",
     "phone": "+1 579-366-4443",
     "location": "",
-    "links": ["linkedin.com/in/justin-mendoza", "github.com/Justin-Mendoza"]
+    "links": ["linkedin.com/in/justin-mendoza", "github.com/Justin-Mendoza"],
+    "linkUrls": ["https://www.linkedin.com/in/justin-mendoza-132960238/", "https://github.com/Justin-Mendoza"]
   },
   "skills": [
     {"id":"go","label":"Go","categories":["Languages"]},
@@ -69,16 +70,16 @@
     }
   ],
   "projects": [
-    {"id":"search","nameVariants":["Enterprise Search Engine","Enterprise AI Search Engine"],"bullets":[
+    {"id":"search","nameVariants":["Enterprise Search Engine","Enterprise AI Search Engine"],"url":"https://github.com/Justin-Mendoza/hybrid-rag-search","bullets":[
       {"id":"search_relevance","text":"Improved search relevance by 12% (nDCG@10) over dense-only retrieval by combining BM25, vector search, reciprocal-rank fusion, and neural reranking.","skillIds":["bm25","vector_search","neural_reranking","hybrid_search"]},
       {"id":"search_index","text":"Indexed 10,000+ document chunks through resumable ingestion while enforcing authorization across retrieval, caching, and citations with zero cross-tenant leakage in security tests.","skillIds":["rag"]},
       {"id":"search_load","text":"Sustained 20+ requests/sec in local API load tests while benchmarking retrieval strategies across relevance, p95 latency, throughput, and model costs.","skillIds":["fastapi"]}
     ]},
-    {"id":"video","nameVariants":["Video Analytics Distributed System"],"bullets":[
+    {"id":"video","nameVariants":["Video Analytics Distributed System"],"url":"https://github.com/Justin-Mendoza/Kafka-Powered-Video-Metrics-System","bullets":[
       {"id":"video_pipeline","text":"Engineered an event-driven pipeline streaming YouTube metrics through Confluent Cloud Kafka into a Telegram notification service.","skillIds":["kafka"]},
       {"id":"video_services","text":"Split ingestion and delivery into independent producer and consumer services, so a downstream outage buffers in Kafka instead of dropping metrics.","skillIds":["kafka"]}
     ]},
-    {"id":"vpc","nameVariants":["Secure AWS Virtual Private Cloud"],"bullets":[
+    {"id":"vpc","nameVariants":["Secure AWS Virtual Private Cloud"],"url":"https://github.com/Justin-Mendoza/AWS-VPC/tree/main","bullets":[
       {"id":"vpc_subnets","text":"Architected a segmented VPC with public and private subnets, isolating workloads so a compromised public host cannot reach private resources.","skillIds":["aws"]},
       {"id":"vpc_peering","text":"Established VPC peering and gateway endpoints for private S3 access, keeping cross-VPC traffic off the public internet.","skillIds":["aws"]}
     ]}
