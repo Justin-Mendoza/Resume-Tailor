@@ -11,11 +11,12 @@ export function escapeLatex(value) {
 
 const line = text => `${text}\n`;
 const heading = text => `\\vspace{3pt}\\textbf{${escapeLatex(text)}}\\par\\hrule\\vspace{2pt}\n`;
-const bullets = items => items.length ? `\\begin{itemize}\n${items.map(x => `\\item ${escapeLatex(x)}`).join('\n')}\n\\end{itemize}\n` : '';
+const bullets = items => items.length ? `\\begin{list}{\\textbullet}{\\setlength{\\leftmargin}{1.2em}\\setlength{\\labelsep}{0.4em}\\setlength{\\itemsep}{0pt}\\setlength{\\topsep}{1pt}\\setlength{\\parsep}{0pt}}\n${items.map(x => `\\item ${escapeLatex(x)}`).join('\n')}\n\\end{list}\n` : '';
 
 function renderHeader(identity) {
-  const contact = [identity.phone, identity.email, ...(identity.links ?? [])].filter(Boolean).map(escapeLatex).join(' $\\vert$ ');
-  return line(`{\\centering\\fontsize{16}{17}\\selectfont\\textbf{${escapeLatex(identity.name)}}\\par}`) + line(`{\\centering ${contact}\\par}`) + '\\vspace{2pt}\n';
+  const links = (identity.links ?? []).map((label, index) => `\\href{${identity.linkUrls[index]}}{\\underline{${escapeLatex(label)}}}`);
+  const contact = [escapeLatex(identity.phone), `\\href{mailto:${identity.email}}{${escapeLatex(identity.email)}}`, ...links].filter(Boolean).join(' $\\vert$ ');
+  return line(`{\\centering\\fontsize{22}{23}\\selectfont\\textbf{${escapeLatex(identity.name)}}\\par}`) + line(`{\\centering ${contact}\\par}`) + '\\vspace{8pt}\n';
 }
 
 function renderExperience(profile, resume) {
@@ -40,7 +41,7 @@ function renderProjects(profile, resume) {
   for (const selected of resume.projects) {
     const entry = profile.projects.find(e => e.id === selected.entryId);
     const tech = selected.techSkillIds.map(id => profile.skills.find(s => s.id === id).label).join(', ');
-    out += line(`\\textbf{${escapeLatex(entry.nameVariants[selected.nameVariant])}} (GitHub) $\\vert$ ${escapeLatex(tech)}\\par`);
+    out += line(`\\textbf{${escapeLatex(entry.nameVariants[selected.nameVariant])}} \\href{${entry.url}}{\\underline{(GitHub)}} $\\vert$ ${escapeLatex(tech)}\\par`);
     out += bullets(selected.bulletIds.map(id => {
       const b = entry.bullets.find(x => x.id === id);
       const index = resume.variants?.[`projects:${entry.id}:${id}`];

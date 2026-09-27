@@ -22,6 +22,8 @@ function uniqueIds(items, label) {
 export function validateData(profile, resumes) {
   if (!profile || typeof profile !== 'object') throw new Error('Missing verified profile');
   requireString(profile.identity?.name, 'identity name');
+  if ((profile.identity.links ?? []).length !== (profile.identity.linkUrls ?? []).length) throw new Error('Contact link labels and URLs must match');
+  for (const url of profile.identity.linkUrls ?? []) if (!String(url).startsWith('https://')) throw new Error('Contact links must use HTTPS');
   const skillIds = uniqueIds(profile.skills, 'skill');
   for (const skill of profile.skills) {
     requireString(skill.label, `skill ${skill.id} label`);
@@ -38,6 +40,7 @@ export function validateData(profile, resumes) {
       }
       if (section === 'experience' && !entry.titleVariants?.length) throw new Error(`Missing titles for ${entry.id}`);
       if (section === 'projects' && !entry.nameVariants?.length) throw new Error(`Missing names for ${entry.id}`);
+      if (section === 'projects' && !String(entry.url ?? '').startsWith('https://')) throw new Error(`Missing HTTPS project URL for ${entry.id}`);
       if (section === 'education') continue;
       uniqueIds(entry.bullets, `${section} ${entry.id} bullet`);
       for (const bullet of entry.bullets) {

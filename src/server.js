@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { loadData, isConfigured } from './data.js';
-import { analyzeMatches } from './matcher.js';
+import { analyzeMatches, containsTerm, normalize } from './matcher.js';
 import { validateSuggestions, fallbackSuggestions, applyApproved } from './editor.js';
 import { createProvider } from './providers/index.js';
 import { compileResume } from './compiler.js';
@@ -65,17 +65,24 @@ async function analyze(req, res) {
   if (!raw || !Array.isArray(raw.important_keywords)) throw new Error('Qwen returned an incomplete job analysis. Try again.');
   const analysis = analyzeMatches(jd, raw, profile, resumes);
   const resume = resumes[analysis.recommended_resume];
+  const relevantSkills = profile.skills.filter(skill => analysis.important_keywords.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword))));
   const relevantBullets = ['experience', 'projects'].flatMap(section => resume[section].map(sel => {
     const entry = profile[section].find(x => x.id === sel.entryId);
-    return { section, entryId: entry.id, bulletIds: sel.bulletIds, bullets: sel.bulletIds.map(id => {
+    return { section, entryId: entry.id, bulletIds: sel.bulletIds, relevantBullets: sel.bulletIds.map(id => {
       const bullet = entry.bullets.find(x => x.id === id);
       return { id, text: bullet.text, variants: bullet.variants ?? [], skillIds: bullet.skillIds ?? [] };
-    }) };
-  }));
+    }).filter(bullet => analysis.important_keywords.some(keyword => containsTerm(bullet.text, keyword) || bullet.skillIds.some(id => relevantSkills.some(skill => skill.id === id)))) };
+  })).filter(entry => entry.relevantBullets.length);
+  const selectedResume = {
+    id: resume.id,
+    skillGroups: resume.skillGroups.map(group => ({ label: group.label, skills: group.skillIds.map(id => ({ id, label: profile.skills.find(skill => skill.id === id).label })) })),
+    projects: resume.projects.map(project => ({ entryId: project.entryId, technologies: project.techSkillIds.map(id => ({ id, label: profile.skills.find(skill => skill.id === id).label })) })),
+    entries: relevantBullets
+  };
   let warning = '';
   let suggestions;
   try {
-    const rawEdits = await provider.suggestEdits({ jobTitle, jobCategory: analysis.job_category, keywords: analysis.important_keywords, missingButVerified: analysis.missing_but_verified, unsupported: analysis.unsupported_keywords, selectedResume: resume, skills: profile.skills.map(({ id, label, categories }) => ({ id, label, categories })), entries: relevantBullets });
+    const rawEdits = await provider.suggestEdits({ jobTitle, jobCategory: analysis.job_category, keywords: analysis.important_keywords, missingButVerified: relevantSkills.filter(skill => analysis.missing_but_verified.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), unsupported: analysis.unsupported_keywords, selectedResume });
     suggestions = validateSuggestions(rawEdits?.suggested_changes, analysis, profile, resume);
   } catch (error) {
     warning = `Qwen's edit suggestions were unavailable: ${error.message}. Showing safe verified suggestions.`;

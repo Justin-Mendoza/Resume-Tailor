@@ -38,10 +38,11 @@ export function buildChange(raw, analysis, profile, resume) {
   } else if (raw.operation === 'skill_reorder' && raw.section === 'skills') {
     const group = resume.skillGroups.find(x => x.label === raw.targetId);
     if (!group || !Array.isArray(raw.order) || !sameSet(group.skillIds, raw.order) || group.skillIds.every((x, i) => x === raw.order[i])) return null;
-    if (!group.skillIds.some(id => {
+    const relevantIds = group.skillIds.filter(id => {
       const skill = profile.skills.find(x => x.id === id);
       return [skill.label, ...(skill.aliases ?? [])].some(x => normalize(x) === normalize(keyword));
-    })) return null;
+    });
+    if (!relevantIds.some(id => raw.order.indexOf(id) < group.skillIds.indexOf(id))) return null;
     original = group.skillIds.map(id => profile.skills.find(x => x.id === id).label).join(', ');
     proposed = raw.order.map(id => profile.skills.find(x => x.id === id).label).join(', ');
     title = `Reorder skills · ${group.label}`;
@@ -49,10 +50,11 @@ export function buildChange(raw, analysis, profile, resume) {
   } else if (raw.operation === 'project_tech_reorder' && raw.section === 'projects') {
     const sel = findSelection(resume, 'projects', raw.targetId);
     if (!sel || !Array.isArray(raw.order) || !sameSet(sel.techSkillIds, raw.order) || sel.techSkillIds.every((x, i) => x === raw.order[i])) return null;
-    if (!sel.techSkillIds.some(id => {
+    const relevantIds = sel.techSkillIds.filter(id => {
       const skill = profile.skills.find(x => x.id === id);
       return [skill.label, ...(skill.aliases ?? [])].some(x => normalize(x) === normalize(keyword));
-    })) return null;
+    });
+    if (!relevantIds.some(id => raw.order.indexOf(id) < sel.techSkillIds.indexOf(id))) return null;
     original = sel.techSkillIds.map(id => profile.skills.find(x => x.id === id).label).join(', ');
     proposed = raw.order.map(id => profile.skills.find(x => x.id === id).label).join(', ');
     title = `Reorder project technologies · ${raw.targetId}`;
@@ -60,13 +62,14 @@ export function buildChange(raw, analysis, profile, resume) {
   } else if (raw.operation === 'bullet_reorder' && ['experience', 'projects'].includes(raw.section)) {
     const sel = findSelection(resume, raw.section, raw.targetId);
     if (!sel || !Array.isArray(raw.order) || !sameSet(sel.bulletIds, raw.order) || sel.bulletIds.every((x, i) => x === raw.order[i])) return null;
-    if (!sel.bulletIds.some(id => {
+    const relevantIds = sel.bulletIds.filter(id => {
       const b = findBullet(profile, raw.section, raw.targetId, id);
       return containsTerm(b.text, keyword) || (b.skillIds ?? []).some(skillId => {
         const s = profile.skills.find(x => x.id === skillId);
         return s && [s.label, ...(s.aliases ?? [])].some(x => normalize(x) === normalize(keyword));
       });
-    })) return null;
+    });
+    if (!relevantIds.some(id => raw.order.indexOf(id) < sel.bulletIds.indexOf(id))) return null;
     original = sel.bulletIds.map(id => `• ${bulletText(profile, raw.section, raw.targetId, id)}`).join('\n');
     proposed = raw.order.map(id => `• ${bulletText(profile, raw.section, raw.targetId, id)}`).join('\n');
     title = `Reorder bullets · ${raw.targetId}`;
@@ -79,7 +82,7 @@ export function buildChange(raw, analysis, profile, resume) {
     const currentVariant = resume.variants?.[`${raw.section}:${raw.targetId}:${raw.itemId}`];
     original = currentVariant === undefined ? bullet.text : bullet.variants[currentVariant];
     proposed = bullet.variants[raw.variantIndex];
-    if (original === proposed) return null;
+    if (original === proposed || containsTerm(original, keyword)) return null;
     title = `Use verified wording · ${raw.targetId}`;
     conflictKey = `entry:${raw.section}:${raw.targetId}`;
   } else return null;

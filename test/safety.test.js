@@ -27,17 +27,25 @@ test('unsupported JD keyword cannot become a resume edit', () => {
 });
 
 test('only exact verified variants and valid reorder permutations survive', () => {
-  const jd = 'Kubernetes and Go are required for infrastructure engineering.';
-  const analysis = analyzeMatches(jd, { recommended_resume: 'backend_infra', job_category: 'infrastructure', important_keywords: ['Kubernetes', 'Go'] }, profile, resumes);
-  const valid = { operation: 'skill_reorder', section: 'skills', targetId: 'Infrastructure', itemId: '', order: ['docker', 'kubernetes', ...resumes.backend_infra.skillGroups[1].skillIds.slice(2)], variantIndex: 0, reason: 'Bring Docker first', jdKeyword: 'Kubernetes', confidence: 0.7 };
+  const jd = 'Kubernetes, Go, and AWS are required for infrastructure engineering.';
+  const analysis = analyzeMatches(jd, { recommended_resume: 'backend_infra', job_category: 'infrastructure', important_keywords: ['Kubernetes', 'Go', 'AWS'] }, profile, resumes);
+  const valid = { operation: 'skill_reorder', section: 'skills', targetId: 'Infrastructure', itemId: '', order: ['aws', 'kubernetes', 'docker', ...resumes.backend_infra.skillGroups[1].skillIds.slice(3)], variantIndex: 0, reason: 'Bring AWS first', jdKeyword: 'AWS', confidence: 0.7 };
   const invalid = { ...valid, order: ['new_technology'] };
   assert.equal(validateSuggestions([invalid], analysis, profile, resumes.backend_infra).length, 0);
   const change = validateSuggestions([valid], analysis, profile, resumes.backend_infra);
   assert.equal(change.length, 1);
   const tailored = applyApproved(resumes.backend_infra, change, [change[0].id]);
-  assert.equal(tailored.skillGroups[1].skillIds[0], 'docker');
+  assert.equal(tailored.skillGroups[1].skillIds[0], 'aws');
   assert.equal(resumes.backend_infra.skillGroups[1].skillIds[0], 'kubernetes');
   assert.throws(() => applyApproved(resumes.backend_infra, change, ['invented_edit']));
+});
+
+test('irrelevant reorders are rejected even when they are valid permutations', () => {
+  const jd = 'Go and Kubernetes are required for infrastructure engineering.';
+  const analysis = analyzeMatches(jd, { recommended_resume: 'backend_infra', job_category: 'infrastructure', important_keywords: ['Go', 'Kubernetes'] }, profile, resumes);
+  const group = resumes.backend_infra.skillGroups[0];
+  const proposal = { operation: 'skill_reorder', section: 'skills', targetId: 'Languages', itemId: '', order: [group.skillIds[0], group.skillIds[2], group.skillIds[1], ...group.skillIds.slice(3)], variantIndex: 0, reason: 'Go is important', jdKeyword: 'Go', confidence: 0.8 };
+  assert.equal(buildChange(proposal, analysis, profile, resumes.backend_infra), null);
 });
 
 test('renderer escapes special characters and filenames stay plain', () => {
@@ -58,6 +66,7 @@ test('Kyma adapter sends the documented Qwen model ID and JSON mode', async () =
     assert.equal(options.headers.Authorization, 'Bearer test-key');
     const body = JSON.parse(options.body);
     assert.equal(body.model, 'qwen3.8-flash');
+    assert.equal(body.enable_thinking, false);
     assert.deepEqual(body.response_format, { type: 'json_object' });
     return { ok: true, json: async () => ({ choices: [{ message: { content: '{"recommended_resume":"general_swe","job_category":"software_engineering","important_keywords":["Go"]}' } }] }) };
   } });
