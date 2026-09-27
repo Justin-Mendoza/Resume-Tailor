@@ -9,7 +9,7 @@ test('three verified resume selections load without unknown references', () => {
   assert.equal(isConfigured(profile, resumes), true);
   assert.equal(Object.keys(resumes).length, 3);
   assert.equal(profile.experience.length, 2);
-  assert.equal(profile.projects.length, 3);
+  assert.equal(profile.projects.length, 4);
 });
 
 test('keyword comparison separates present, verified missing, and unsupported terms', () => {

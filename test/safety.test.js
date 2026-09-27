@@ -18,6 +18,20 @@ test('all three transcribed resumes load and render from verified content', asyn
   }
 });
 
+test('updated General and AI resumes include the verified Resume Tailor project while Infrastructure keeps VPC', async () => {
+  for (const id of ['general_swe', 'ai_search_ml']) {
+    const resume = resumes[id];
+    assert.ok(resume.projects.some(project => project.entryId === 'resume_tailor'));
+    assert.ok(!resume.projects.some(project => project.entryId === 'vpc'));
+    const tex = await renderLatex(profile, resume);
+    assert.match(tex, /Resume Tailor/);
+    assert.match(tex, /Qwen API, LaTeX, JSON Schema/);
+    assert.match(tex, /JSON Schema validation/);
+  }
+  assert.ok(resumes.backend_infra.projects.some(project => project.entryId === 'vpc'));
+  assert.ok(!resumes.backend_infra.projects.some(project => project.entryId === 'resume_tailor'));
+});
+
 test('unsupported JD keyword cannot become a resume edit', () => {
   const jd = 'We need Python and Ruby on Rails for this backend software engineering role.';
   const analysis = analyzeMatches(jd, { recommended_resume: 'general_swe', job_category: 'backend_swe', important_keywords: ['Python', 'Ruby on Rails'] }, profile, resumes);
