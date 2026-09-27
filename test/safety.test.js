@@ -93,3 +93,27 @@ test('Kyma adapter sends the documented Qwen model ID and JSON mode', async () =
   const result = await provider.analyzeJD({ jobDescription: 'Go' });
   assert.deepEqual(result.important_keywords, ['Go']);
 });
+
+test('Qwen refinement defaults to 60 seconds and cannot exceed the 120-second maximum', async () => {
+  const seenTimeouts = [];
+  const fetchImpl = async (_url, options) => {
+    return { ok: true, json: async () => ({ choices: [{ message: { content: '{"suggested_changes":[]}' } }] }) };
+  };
+  const provider = createKymaProvider({
+    apiKey: 'test-key',
+    refinementTimeoutMs: undefined,
+    timeoutSignal: ms => { seenTimeouts.push(ms); return AbortSignal.timeout(ms); },
+    fetchImpl
+  });
+  await provider.suggestEdits({});
+  assert.equal(seenTimeouts.pop(), 60_000);
+
+  const cappedProvider = createKymaProvider({
+    apiKey: 'test-key',
+    refinementTimeoutMs: 180_000,
+    timeoutSignal: ms => { seenTimeouts.push(ms); return AbortSignal.timeout(ms); },
+    fetchImpl
+  });
+  await cappedProvider.suggestEdits({});
+  assert.equal(seenTimeouts.pop(), 120_000);
+});
