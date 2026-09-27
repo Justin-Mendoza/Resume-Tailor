@@ -45,6 +45,9 @@
     {"id":"aws_ec2","label":"AWS EC2","categories":[]},
     {"id":"vpc_tech","label":"VPC","categories":[]},
     {"id":"s3","label":"S3","categories":[]},
+    {"id":"qwen_api","label":"Qwen API","categories":[]},
+    {"id":"latex","label":"LaTeX","categories":[]},
+    {"id":"json_schema","label":"JSON Schema","categories":[]},
     {"id":"english","label":"English","categories":["Spoken"]},
     {"id":"french","label":"French","categories":["Spoken"]}
   ],
@@ -78,6 +81,10 @@
     {"id":"video","nameVariants":["Video Analytics Distributed System"],"url":"https://github.com/Justin-Mendoza/Kafka-Powered-Video-Metrics-System","bullets":[
       {"id":"video_pipeline","text":"Engineered an event-driven pipeline streaming YouTube metrics through Confluent Cloud Kafka into a Telegram notification service.","skillIds":["kafka"]},
       {"id":"video_services","text":"Split ingestion and delivery into independent producer and consumer services, so a downstream outage buffers in Kafka instead of dropping metrics.","skillIds":["kafka"]}
+    ]},
+    {"id":"resume_tailor","nameVariants":["Resume Tailor"],"url":"https://github.com/Justin-Mendoza/Resume-Tailor","bullets":[
+      {"id":"rt_pipeline","text":"Built an LLM-assisted resume tailoring pipeline that maps job descriptions to verified experience and proposes role-specific keyword and wording changes.","skillIds":["qwen_api","latex"]},
+      {"id":"rt_validation","text":"Added JSON Schema validation and per-change approval before compiling tailored LaTeX resumes to PDF, preventing unsupported claims.","skillIds":["json_schema","latex"]}
     ]},
     {"id":"vpc","nameVariants":["Secure AWS Virtual Private Cloud"],"url":"https://github.com/Justin-Mendoza/AWS-VPC/tree/main","bullets":[
       {"id":"vpc_subnets","text":"Architected a segmented VPC with public and private subnets, isolating workloads so a compromised public host cannot reach private resources.","skillIds":["aws"]},
