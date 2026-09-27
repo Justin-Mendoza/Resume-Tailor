@@ -94,6 +94,37 @@ test('local suggestions provide several verified, relevant edits without Qwen re
   assert.ok(changes.every(change => buildChange({ ...change.edit, reason: change.reason, jdKeyword: change.jdKeyword, confidence: change.confidence }, analysis, profile, resumes[analysis.recommended_resume])));
 });
 
+test('ATS suggestions add a verified skill to Skills even when it appears only in a project', () => {
+  const tailoredBase = structuredClone(resumes.general_swe);
+  tailoredBase.skillGroups.find(group => group.label === 'Backend & Data').skillIds = tailoredBase.skillGroups.find(group => group.label === 'Backend & Data').skillIds.filter(id => id !== 'opensearch');
+  const selected = { ...resumes, general_swe: tailoredBase };
+  const analysis = analyzeMatches('OpenSearch is a core requirement for this backend software engineering role.', { recommended_resume: 'general_swe', job_category: 'backend_swe', important_keywords: ['OpenSearch'] }, profile, selected);
+  assert.ok(analysis.matched_keywords.includes('OpenSearch'));
+  assert.ok(analysis.missing_from_skills.includes('OpenSearch'));
+  const changes = fallbackSuggestions(analysis, profile, tailoredBase);
+  const add = changes.find(change => change.edit.operation === 'skill_add' && change.edit.itemId === 'opensearch');
+  assert.ok(add);
+  const approved = applyApproved(tailoredBase, [add], [add.id]);
+  assert.ok(approved.skillGroups.find(group => group.label === 'Backend & Data').skillIds.includes('opensearch'));
+});
+
+test('ATS suggestions can move an existing relevant project before unrelated projects', () => {
+  const analysis = analyzeMatches('Kafka is central to this software engineering role.', { recommended_resume: 'general_swe', job_category: 'software_engineering', important_keywords: ['Kafka'] }, profile, resumes);
+  const changes = fallbackSuggestions(analysis, profile, resumes.general_swe);
+  const reorder = changes.find(change => change.edit.operation === 'project_reorder');
+  assert.ok(reorder);
+  const tailored = applyApproved(resumes.general_swe, [reorder], [reorder.id]);
+  assert.equal(tailored.projects[0].entryId, 'video');
+  assert.equal(resumes.general_swe.projects[0].entryId, 'search');
+});
+
+test('project reorder validation rejects invented IDs and changes unrelated to the cited keyword', () => {
+  const analysis = analyzeMatches('Kafka is central to this software engineering role.', { recommended_resume: 'general_swe', job_category: 'software_engineering', important_keywords: ['Kafka'] }, profile, resumes);
+  const base = { operation: 'project_reorder', section: 'projects', targetId: 'projects', itemId: '', variantIndex: 0, reason: 'Put relevant work first', jdKeyword: 'Kafka', confidence: 0.8 };
+  assert.equal(buildChange({ ...base, order: ['invented_project', 'search', 'resume_tailor'] }, analysis, profile, resumes.general_swe), null);
+  assert.equal(buildChange({ ...base, order: ['resume_tailor', 'search', 'video'] }, analysis, profile, resumes.general_swe), null);
+});
+
 test('Kyma adapter sends the documented Qwen model ID and JSON mode', async () => {
   const provider = createKymaProvider({ apiKey: 'test-key', model: 'qwen-3.8-flash', fetchImpl: async (url, options) => {
     assert.equal(url, 'https://kymaapi.com/v1/chat/completions');

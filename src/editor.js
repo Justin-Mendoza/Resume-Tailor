@@ -16,6 +16,22 @@ function bulletText(profile, section, entryId, bulletId, variantIndex = -1) {
   return variantIndex < 0 ? bullet?.text : bullet?.variants?.[variantIndex];
 }
 
+function projectMatches(profile, selection, keyword) {
+  const project = profile.projects.find(entry => entry.id === selection.entryId);
+  const technologies = selection.techSkillIds.map(id => profile.skills.find(skill => skill.id === id)).filter(Boolean);
+  const bullets = selection.bulletIds.map(id => project.bullets.find(bullet => bullet.id === id)).filter(Boolean);
+  return technologies.some(skill => [skill.label, ...(skill.aliases ?? [])].some(term => normalize(term) === normalize(keyword))) ||
+    bullets.some(bullet => containsTerm(bullet.text, keyword) || (bullet.skillIds ?? []).some(id => {
+      const skill = profile.skills.find(item => item.id === id);
+      return skill && [skill.label, ...(skill.aliases ?? [])].some(term => normalize(term) === normalize(keyword));
+    }));
+}
+
+function projectName(profile, selection) {
+  const entry = profile.projects.find(project => project.id === selection.entryId);
+  return entry.nameVariants[selection.nameVariant];
+}
+
 export function buildChange(raw, analysis, profile, resume) {
   if (!raw || typeof raw !== 'object') return null;
   const keyword = analysis.important_keywords.find(x => normalize(x) === normalize(raw.jdKeyword));
@@ -29,7 +45,7 @@ export function buildChange(raw, analysis, profile, resume) {
   if (raw.operation === 'skill_add' && raw.section === 'skills') {
     const group = resume.skillGroups.find(x => x.label === raw.targetId);
     const skill = profile.skills.find(x => x.id === raw.itemId);
-    if (!group || !skill || group.skillIds.includes(skill.id) || !skill.categories.includes(group.label) || !analysis.missing_but_verified.some(x => normalize(x) === normalize(keyword))) return null;
+    if (!group || !skill || group.skillIds.includes(skill.id) || !skill.categories.includes(group.label) || !analysis.missing_from_skills?.some(x => normalize(x) === normalize(keyword))) return null;
     if (![skill.label, ...(skill.aliases ?? [])].some(x => normalize(x) === normalize(keyword))) return null;
     original = group.skillIds.map(id => profile.skills.find(x => x.id === id).label).join(', ');
     proposed = [...group.skillIds, skill.id].map(id => profile.skills.find(x => x.id === id).label).join(', ');
@@ -59,6 +75,16 @@ export function buildChange(raw, analysis, profile, resume) {
     proposed = raw.order.map(id => profile.skills.find(x => x.id === id).label).join(', ');
     title = `Reorder project technologies · ${raw.targetId}`;
     conflictKey = `tech:${raw.targetId}`;
+  } else if (raw.operation === 'project_reorder' && raw.section === 'projects') {
+    const projects = resume.projects;
+    if (raw.targetId !== 'projects' || !Array.isArray(raw.order) || !sameSet(projects.map(project => project.entryId), raw.order) || projects.every((project, index) => project.entryId === raw.order[index])) return null;
+    const oldRelevantIndex = projects.findIndex(project => projectMatches(profile, project, keyword));
+    const newRelevantIndex = raw.order.findIndex(id => projectMatches(profile, projects.find(project => project.entryId === id), keyword));
+    if (oldRelevantIndex < 0 || newRelevantIndex < 0 || newRelevantIndex >= oldRelevantIndex) return null;
+    original = projects.map(project => projectName(profile, project)).join('\n');
+    proposed = raw.order.map(id => projectName(profile, projects.find(project => project.entryId === id))).join('\n');
+    title = 'Reorder projects';
+    conflictKey = 'project-order';
   } else if (raw.operation === 'bullet_reorder' && ['experience', 'projects'].includes(raw.section)) {
     const sel = findSelection(resume, raw.section, raw.targetId);
     if (!sel || !Array.isArray(raw.order) || !sameSet(sel.bulletIds, raw.order) || sel.bulletIds.every((x, i) => x === raw.order[i])) return null;
@@ -105,7 +131,7 @@ export function validateSuggestions(rawSuggestions, analysis, profile, resume) {
 export function fallbackSuggestions(analysis, profile, resume) {
   const candidates = [];
   const skillFor = keyword => profile.skills.find(s => [s.label, ...(s.aliases ?? [])].some(x => normalize(x) === normalize(keyword)));
-  for (const keyword of analysis.missing_but_verified) {
+  for (const keyword of analysis.missing_from_skills ?? analysis.missing_but_verified) {
     const skill = skillFor(keyword);
     const group = resume.skillGroups.find(g => skill?.categories.includes(g.label));
     if (!skill || !group) continue;
@@ -124,6 +150,14 @@ export function fallbackSuggestions(analysis, profile, resume) {
         }
       }
     }
+  }
+  for (const keyword of analysis.matched_keywords) {
+    const relevant = resume.projects.filter(project => projectMatches(profile, project, keyword));
+    if (!relevant.length) continue;
+    const relevantIds = new Set(relevant.map(project => project.entryId));
+    const order = [...relevant, ...resume.projects.filter(project => !relevantIds.has(project.entryId))].map(project => project.entryId);
+    if (order.every((id, index) => resume.projects[index].entryId === id)) continue;
+    candidates.push({ operation: 'project_reorder', section: 'projects', targetId: 'projects', itemId: '', order, variantIndex: 0, reason: `Put projects that demonstrate ${keyword} before less relevant projects.`, jdKeyword: keyword, confidence: 0.82 });
   }
   for (const keyword of analysis.matched_keywords) {
     const skill = skillFor(keyword);
@@ -159,6 +193,7 @@ export function applyApproved(resume, changes, approvedIds) {
     if (e.operation === 'skill_add') result.skillGroups.find(x => x.label === e.targetId).skillIds.push(e.itemId);
     else if (e.operation === 'skill_reorder') result.skillGroups.find(x => x.label === e.targetId).skillIds = [...e.order];
     else if (e.operation === 'project_tech_reorder') findSelection(result, 'projects', e.targetId).techSkillIds = [...e.order];
+    else if (e.operation === 'project_reorder') result.projects = e.order.map(id => result.projects.find(project => project.entryId === id));
     else if (e.operation === 'bullet_reorder') findSelection(result, e.section, e.targetId).bulletIds = [...e.order];
     else if (e.operation === 'bullet_variant') {
       result.variants ??= {};

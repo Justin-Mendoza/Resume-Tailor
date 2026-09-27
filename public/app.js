@@ -91,6 +91,7 @@ $('job-form').addEventListener('submit', async event => {
     renderChips('important-keywords', value.analysis.important_keywords);
     renderChips('matched-keywords', value.analysis.matched_keywords, 'matched');
     renderChips('missing-keywords', value.analysis.missing_but_verified, 'missing');
+    renderChips('missing-skills-keywords', value.analysis.missing_from_skills ?? [], 'missing');
     renderChips('unsupported-keywords', value.analysis.unsupported_keywords, 'unsupported-chip');
     $('analysis-warning').textContent = value.warning || '';
     $('analysis-warning').classList.toggle('hidden', !value.warning);
