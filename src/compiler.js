@@ -33,7 +33,8 @@ async function pageCount(pdfPath) {
   if (process.platform === 'darwin' && await commandExists('osascript')) {
     const script = 'ObjC.import("PDFKit"); function run(argv) { var d=$.PDFDocument.alloc.initWithURL($.NSURL.fileURLWithPath(argv[0])); return d.pageCount; }';
     const result = await run('osascript', ['-l', 'JavaScript', '-e', script, pdfPath], root);
-    if (result.code === 0 && /^\d+\s*$/.test(result.output)) return Number(result.output.trim());
+    const match = result.output.match(/^(\d+)\s*$/m);
+    if (result.code === 0 && match) return Number(match[1]);
   }
   return null;
 }
