@@ -1,0 +1,22 @@
+{
+  "id": "ai_search_ml",
+  "title": "AI / Search / ML Infrastructure",
+  "skillGroups": [
+    {"label":"Languages","skillIds":["python","go","typescript_js","java","cpp","csharp","sql"]},
+    {"label":"AI & Search","skillIds":["rag","hybrid_search","bm25","vector_search","neural_reranking","cohere"]},
+    {"label":"Backend & Data","skillIds":["fastapi","opensearch","postgresql","redis","kafka","rest_apis","spring_boot"]},
+    {"label":"Cloud & Infrastructure","skillIds":["kubernetes","docker","aws","gcp","azure","openshift","jenkins","argocd","datadog"]},
+    {"label":"Spoken","skillIds":["english","french"]}
+  ],
+  "experience": [
+    {"entryId":"datadog_2026","titleVariant":0,"bulletIds":["dd_gpu","dd_ingest","dd_chargeback","dd_ui"]},
+    {"entryId":"intact_2025","titleVariant":0,"bulletIds":["if_onboard","if_cicd","if_security"]}
+  ],
+  "projects": [
+    {"entryId":"search","nameVariant":1,"techSkillIds":["python","fastapi","opensearch","cohere","postgresql","redis"],"bulletIds":["search_relevance","search_index","search_load"]},
+    {"entryId":"video","nameVariant":0,"techSkillIds":["python","kafka","confluent_cloud","rest_apis"],"bulletIds":["video_pipeline","video_services"]},
+    {"entryId":"vpc","nameVariant":0,"techSkillIds":["aws_ec2","vpc_tech","s3"],"bulletIds":["vpc_subnets","vpc_peering"]}
+  ],
+  "education": [{"entryId":"concordia"}],
+  "variants": {"experience:datadog_2026:dd_ingest":0}
+}
