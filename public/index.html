@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resume Tailor</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">RT</span><span>Resume Tailor</span></div>
+      <span class="local-pill"><span class="dot"></span> Local workspace</span>
+    </header>
+
+    <div class="intro">
+      <div class="eyebrow">A careful edit, for one opportunity</div>
+      <h1>Make your experience<br><em>more relevant.</em></h1>
+      <p>Choose the strongest verified resume, review every proposed adjustment, and export a one-page PDF.</p>
+    </div>
+
+    <div id="status" class="status" role="status">Checking setup…</div>
+
+    <section class="panel input-panel" aria-labelledby="job-heading">
+      <div class="section-head"><span class="step">01</span><div><h2 id="job-heading">The opportunity</h2><p>Paste the job posting you want to tailor for.</p></div></div>
+      <form id="job-form">
+        <div class="field-row">
+          <label>Job title<input id="job-title" name="jobTitle" placeholder="Software Engineer" required maxlength="120"></label>
+          <label>Company<input id="company" name="company" placeholder="Company name" required maxlength="120"></label>
+        </div>
+        <label class="wide-label">Job description<textarea id="job-description" name="jobDescription" placeholder="Paste the full job description here…" required minlength="80"></textarea></label>
+        <div class="form-foot"><span>Only your posting and relevant verified resume content go to Qwen.</span><button id="analyze-button" type="submit">Analyze job <span aria-hidden="true">↗</span></button></div>
+      </form>
+    </section>
+
+    <section id="analysis-section" class="panel hidden" aria-labelledby="analysis-heading">
+      <div class="section-head"><span class="step">02</span><div><h2 id="analysis-heading">Alignment</h2><p>The best starting resume and its overlap with this posting.</p></div></div>
+      <div class="recommendation"><div><div class="small-label">Recommended base</div><strong id="recommended-resume"></strong></div><div><div class="small-label">Role classification</div><strong id="job-category"></strong></div></div>
+      <div class="keyword-grid">
+        <div class="keyword-box"><h3>Important in the job</h3><div id="important-keywords" class="chips"></div></div>
+        <div class="keyword-box"><h3>Already on this resume</h3><div id="matched-keywords" class="chips"></div></div>
+        <div class="keyword-box"><h3>Verified, not on this version</h3><div id="missing-keywords" class="chips"></div></div>
+        <div class="keyword-box unsupported"><h3>Unsupported by verified profile</h3><div id="unsupported-keywords" class="chips"></div><p>These stay out of the resume.</p></div>
+      </div>
+    </section>
+
+    <section id="changes-section" class="panel hidden" aria-labelledby="changes-heading">
+      <div class="section-head"><span class="step">03</span><div><h2 id="changes-heading">Review changes</h2><p>Approve or reject each exact edit. Nothing is applied until you compile.</p></div></div>
+      <div id="analysis-warning" class="notice hidden"></div>
+      <div id="changes-list"></div>
+      <div class="compile-bar"><span id="review-count">0 of 0 reviewed</span><button id="compile-button" type="button" disabled>Compile resume <span aria-hidden="true">↗</span></button></div>
+    </section>
+
+    <section id="output-section" class="panel hidden" aria-labelledby="output-heading">
+      <div class="section-head"><span class="step">04</span><div><h2 id="output-heading">Your PDF</h2><p id="output-note">Compiled and ready to save.</p></div></div>
+      <div class="output-actions"><span id="output-filename"></span><a id="download-link" class="download" href="#">Save PDF ↓</a></div>
+      <iframe id="pdf-preview" title="Tailored resume PDF preview"></iframe>
+    </section>
+    <div id="error" class="error hidden" role="alert"></div>
+    <footer>Verified content only <span>·</span> You approve every edit <span>·</span> Stored on this computer</footer>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
