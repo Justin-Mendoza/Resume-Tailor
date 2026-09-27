@@ -104,19 +104,47 @@ export function validateSuggestions(rawSuggestions, analysis, profile, resume) {
 
 export function fallbackSuggestions(analysis, profile, resume) {
   const candidates = [];
+  const skillFor = keyword => profile.skills.find(s => [s.label, ...(s.aliases ?? [])].some(x => normalize(x) === normalize(keyword)));
   for (const keyword of analysis.missing_but_verified) {
-    const skill = profile.skills.find(s => [s.label, ...(s.aliases ?? [])].some(x => normalize(x) === normalize(keyword)));
+    const skill = skillFor(keyword);
     const group = resume.skillGroups.find(g => skill?.categories.includes(g.label));
     if (!skill || !group) continue;
     candidates.push({ operation: 'skill_add', section: 'skills', targetId: group.label, itemId: skill.id, order: [], variantIndex: 0, reason: `The job description emphasizes ${keyword}; this skill is in your verified profile.`, jdKeyword: keyword, confidence: 0.9 });
   }
-  if (!candidates.length) {
-    for (const keyword of analysis.matched_keywords) {
-      const skill = profile.skills.find(s => [s.label, ...(s.aliases ?? [])].some(x => normalize(x) === normalize(keyword)));
-      const group = resume.skillGroups.find(g => g.skillIds.includes(skill?.id) && g.skillIds[0] !== skill.id);
-      if (!group) continue;
+  for (const keyword of [...analysis.matched_keywords, ...analysis.missing_but_verified]) {
+    for (const section of ['experience', 'projects']) {
+      for (const selected of resume[section]) {
+        const entry = profile[section].find(x => x.id === selected.entryId);
+        for (const bulletId of selected.bulletIds) {
+          const bullet = entry.bullets.find(x => x.id === bulletId);
+          for (const [variantIndex, variant] of (bullet.variants ?? []).entries()) {
+            if (!containsTerm(variant, keyword)) continue;
+            candidates.push({ operation: 'bullet_variant', section, targetId: entry.id, itemId: bulletId, order: [], variantIndex, reason: `Use an existing verified wording that directly mentions ${keyword}.`, jdKeyword: keyword, confidence: 0.85 });
+          }
+        }
+      }
+    }
+  }
+  for (const keyword of analysis.matched_keywords) {
+    const skill = skillFor(keyword);
+    for (const group of resume.skillGroups) {
+      if (!group.skillIds.includes(skill?.id) || group.skillIds[0] === skill.id) continue;
       candidates.push({ operation: 'skill_reorder', section: 'skills', targetId: group.label, itemId: '', order: [skill.id, ...group.skillIds.filter(id => id !== skill.id)], variantIndex: 0, reason: `Put ${keyword} first in its existing skill group because this posting emphasizes it.`, jdKeyword: keyword, confidence: 0.75 });
-      break;
+    }
+    for (const selected of resume.projects) {
+      if (!selected.techSkillIds.includes(skill?.id) || selected.techSkillIds[0] === skill.id) continue;
+      candidates.push({ operation: 'project_tech_reorder', section: 'projects', targetId: selected.entryId, itemId: '', order: [skill.id, ...selected.techSkillIds.filter(id => id !== skill.id)], variantIndex: 0, reason: `Surface the already listed project technology ${keyword} earlier.`, jdKeyword: keyword, confidence: 0.75 });
+    }
+    for (const section of ['experience', 'projects']) {
+      for (const selected of resume[section]) {
+        const entry = profile[section].find(x => x.id === selected.entryId);
+        const bulletId = selected.bulletIds.slice(1).find(id => {
+          const bullet = entry.bullets.find(x => x.id === id);
+          return containsTerm(bullet.text, keyword) || (bullet.skillIds ?? []).includes(skill?.id);
+        });
+        if (!bulletId) continue;
+        candidates.push({ operation: 'bullet_reorder', section, targetId: selected.entryId, itemId: '', order: [bulletId, ...selected.bulletIds.filter(id => id !== bulletId)], variantIndex: 0, reason: `Move the verified ${keyword} example earlier in this entry.`, jdKeyword: keyword, confidence: 0.7 });
+      }
     }
   }
   return validateSuggestions(candidates, analysis, profile, resume);

@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 let current = null;
+let refining = false;
 const decisions = new Map();
 
 function showError(message) {
@@ -39,7 +40,7 @@ function renderChips(id, items, tone = '') {
 function updateReviewCount() {
   const total = current?.changes.length ?? 0;
   $('review-count').textContent = `${decisions.size} of ${total} reviewed`;
-  $('compile-button').disabled = decisions.size !== total;
+  $('compile-button').disabled = refining || decisions.size !== total;
 }
 
 function renderChanges(changes) {
@@ -75,6 +76,7 @@ function renderChanges(changes) {
 }
 
 $('analyze-button').dataset.original = $('analyze-button').textContent;
+$('refine-button').dataset.original = $('refine-button').textContent;
 $('compile-button').dataset.original = $('compile-button').textContent;
 
 $('job-form').addEventListener('submit', async event => {
@@ -97,6 +99,28 @@ $('job-form').addEventListener('submit', async event => {
     $('analysis-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) { showError(error.message); }
   finally { setBusy(button, false); }
+});
+
+$('refine-button').addEventListener('click', async () => {
+  if (!current) return;
+  clearError();
+  const analysisId = current.analysisId;
+  const button = $('refine-button');
+  refining = true;
+  setBusy(button, true, 'Asking Qwen…');
+  updateReviewCount();
+  try {
+    const result = await post('/api/refine', { analysisId });
+    if (current?.analysisId !== analysisId) return;
+    if (result.replaced) {
+      current.changes = result.changes;
+      renderChanges(result.changes);
+      $('output-section').classList.add('hidden');
+    }
+    $('analysis-warning').textContent = result.warning || '';
+    $('analysis-warning').classList.toggle('hidden', !result.warning);
+  } catch (error) { showError(error.message); }
+  finally { refining = false; setBusy(button, false); updateReviewCount(); }
 });
 
 $('compile-button').addEventListener('click', async () => {
