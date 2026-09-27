@@ -41,10 +41,14 @@ export function validateData(profile, resumes) {
       if (section === 'experience' && !entry.titleVariants?.length) throw new Error(`Missing titles for ${entry.id}`);
       if (section === 'projects' && !entry.nameVariants?.length) throw new Error(`Missing names for ${entry.id}`);
       if (section === 'projects' && !String(entry.url ?? '').startsWith('https://')) throw new Error(`Missing HTTPS project URL for ${entry.id}`);
-      if (section === 'education') continue;
+      if (section === 'education') {
+        if (entry.detailEmphasis !== undefined && (!Array.isArray(entry.detailEmphasis) || entry.detailEmphasis.length > (entry.details ?? []).length || entry.detailEmphasis.some((terms, index) => !Array.isArray(terms) || terms.some(term => typeof term !== 'string' || !term || !(entry.details[index] ?? '').includes(term))))) throw new Error(`Invalid emphasis metadata for education ${entry.id}`);
+        continue;
+      }
       uniqueIds(entry.bullets, `${section} ${entry.id} bullet`);
       for (const bullet of entry.bullets) {
         requireString(bullet.text, `bullet ${bullet.id} text`);
+        if (bullet.emphasis !== undefined && (!Array.isArray(bullet.emphasis) || bullet.emphasis.some(term => typeof term !== 'string' || !term || !bullet.text.includes(term)))) throw new Error(`Invalid emphasis metadata for bullet ${bullet.id}`);
         for (const variant of bullet.variants ?? []) requireString(variant, `bullet ${bullet.id} variant`);
         for (const id of bullet.skillIds ?? []) if (!skillIds.has(id)) throw new Error(`Unknown skill ${id} in bullet ${bullet.id}`);
       }
