@@ -5,7 +5,7 @@ A local web app for tailoring Justin Mendoza's three verified resume versions to
 ## Run locally
 
 1. Use Node.js 20 or newer.
-2. Put your Kyma API key in `.env` as `KYMA_API_KEY=...`. The app uses `KYMA_MODEL` if set; the default is `qwen3.8-flash`. It accepts the `qwen-3.8-flash` spelling in the current `.env` and sends Kyma's documented `qwen3.8-flash` model ID. Optionally set `KYMA_BASE_URL` for another Kyma-compatible endpoint.
+2. Put your Kyma API key in `.env` as `KYMA_API_KEY=...`. The app uses `KYMA_MODEL` if set; the default is `qwen3.8-flash`. It accepts the `qwen-3.8-flash` spelling in the current `.env` and sends Kyma's documented `qwen3.8-flash` model ID. Optionally set `KYMA_BASE_URL` for another Kyma-compatible endpoint. Qwen refinement defaults to 60 seconds (`KYMA_REFINE_TIMEOUT_MS`) and is capped at 120 seconds.
 3. Install a local TeX distribution that provides `latexmk` or `pdflatex` and the `geometry` and `hyperref` packages. On macOS, the app also checks `/Library/TeX/texbin`, so BasicTeX works before you restart your terminal.
 4. Run `npm start` and open `http://127.0.0.1:3001`. Set `PORT` if you need a different port.
 
