@@ -10,8 +10,8 @@ export function escapeLatex(value) {
 }
 
 const line = text => `${text}\n`;
-const heading = text => `\\vspace{3pt}\\textbf{${escapeLatex(text)}}\\par\\hrule\\vspace{2pt}\n`;
-const bullets = items => items.length ? `\\begin{list}{\\textbullet}{\\setlength{\\leftmargin}{1.2em}\\setlength{\\labelsep}{0.4em}\\setlength{\\itemsep}{0pt}\\setlength{\\topsep}{1pt}\\setlength{\\parsep}{0pt}}\n${items.map(x => `\\item ${escapeLatex(x)}`).join('\n')}\n\\end{list}\n` : '';
+const heading = text => `\\par\\vspace{5pt}{\\large\\scshape ${escapeLatex(text)}}\\par\\vspace{1pt}\\hrule\\vspace{3pt}\n`;
+const bullets = items => items.length ? `\\begin{list}{\\textbullet}{\\setlength{\\leftmargin}{1.2em}\\setlength{\\labelsep}{0.4em}\\setlength{\\itemsep}{1pt}\\setlength{\\topsep}{1.5pt}\\setlength{\\parsep}{0pt}}\n${items.map(x => `\\item ${escapeLatex(x)}`).join('\n')}\n\\end{list}\n` : '';
 
 function renderHeader(identity) {
   const links = (identity.links ?? []).map((label, index) => `\\href{${identity.linkUrls[index]}}{\\underline{${escapeLatex(label)}}}`);
