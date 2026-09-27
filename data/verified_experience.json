@@ -53,9 +53,9 @@
       "id":"datadog_2026","company":"Datadog","location":"New York, NY","dates":"May 2026 – Aug. 2026",
       "titleVariants":["Software Engineer Intern (Go, TypeScript, Kubernetes, AWS/GCP/Azure)","Software Engineer Intern - Workload Placement (Go, Kubernetes, AWS/GCP/Azure)"],
       "bullets":[
-        {"id":"dd_gpu","text":"Surfaced $100,000+ in underutilized GPU reservations to AI Platform teams, replacing per-cloud manual audits with one view of fleet-wide capacity for 3,000+ engineers.","skillIds":["aws","gcp","azure"]},
+        {"id":"dd_gpu","text":"Surfaced $100,000+ in underutilized GPU reservations to AI Platform teams, replacing per-cloud manual audits with one view of fleet-wide capacity for 3,000+ engineers.","emphasis":["$100,000+","3,000+ engineers"],"skillIds":["aws","gcp","azure"]},
         {"id":"dd_ingest","text":"Engineered a provider-agnostic ingestion layer in Go correlating Datadog metrics against AWS, GCP, and Azure reservation records, so onboarding a new provider requires no rewrites.","variants":["Engineered a provider-agnostic ingestion layer in Go correlating Kubernetes and Datadog metrics with AWS, GCP, and Azure reservation records, enabling new cloud providers without rewrites."],"skillIds":["go","datadog","kubernetes","aws","gcp","azure"]},
-        {"id":"dd_chargeback","text":"Attributed idle node-hours back to the owning team as a chargeback signal, giving capacity owners a cost line they could act on.","skillIds":[]},
+        {"id":"dd_chargeback","text":"Attributed idle node-hours back to the owning team as a chargeback signal, giving capacity owners a cost line they could act on.","emphasis":["chargeback signal"],"skillIds":[]},
         {"id":"dd_ui","text":"Shipped a TypeScript interface letting teams trace waste down to the specific reservations and clusters driving it.","skillIds":["typescript_js"]}
       ]
     },
@@ -85,6 +85,6 @@
     ]}
   ],
   "education": [
-    {"id":"concordia","school":"Concordia University","location":"Montreal, QC","degree":"Bachelor of Computer Science","dates":"Sept. 2023 – Dec. 2026","details":["Director of Competitions, Software Engineering and Computer Science Society (ran a 100+ competitor coding competition, led technical workshop programming).","Courses: Distributed Systems, Operating Systems, Algorithms, Databases, Big Data Analytics, Embedded Systems, Operations Research."]}
+    {"id":"concordia","school":"Concordia University","location":"Montreal, QC","degree":"Bachelor of Computer Science","dates":"Sept. 2023 – Dec. 2026","details":["Director of Competitions, Software Engineering and Computer Science Society (ran a 100+ competitor coding competition, led technical workshop programming).","Courses: Distributed Systems, Operating Systems, Algorithms, Databases, Big Data Analytics, Embedded Systems, Operations Research."],"detailEmphasis":[["Director of Competitions","100+ competitor"],["Courses:"]]}
   ]
 }

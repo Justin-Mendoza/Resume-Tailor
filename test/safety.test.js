@@ -53,6 +53,16 @@ test('renderer escapes special characters and filenames stay plain', () => {
   assert.equal(outputFilename('Justin Mendoza', 'Cohere / Inc.', 'Software Engineer'), 'Justin_Mendoza_Cohere_Inc_Software_Engineer.pdf');
 });
 
+test('renderer uses the structured Overleaf layout and only bolds verified emphasis spans', async () => {
+  const tex = await renderLatex(profile, resumes.general_swe);
+  assert.ok(tex.includes('\\resumeSubheading{Datadog}{New York, NY}'));
+  assert.ok(tex.includes('\\resumeProject{Enterprise Search Engine'));
+  assert.ok(tex.includes('\\textbf{\\$100,000+}'));
+  assert.ok(tex.includes('\\textbf{3,000+ engineers}'));
+  assert.ok(tex.includes('\\textbf{chargeback signal}'));
+  assert.ok(tex.includes('\\resumeSkill{Backend \\& Data}'));
+});
+
 test('new bullet wording from the model is never accepted', () => {
   const jd = 'We need Kubernetes and Go for this infrastructure role.';
   const analysis = analyzeMatches(jd, { recommended_resume: 'backend_infra', job_category: 'infrastructure', important_keywords: ['Kubernetes', 'Go'] }, profile, resumes);

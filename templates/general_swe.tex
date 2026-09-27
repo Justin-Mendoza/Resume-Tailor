@@ -1,14 +1,27 @@
-\documentclass[11pt,letterpaper]{article}
-\usepackage[left=0.58in,right=0.58in,top=0.24in,bottom=0.35in]{geometry}
+\documentclass[letterpaper,11pt]{article}
+\usepackage[left=0.5in,right=0.5in,top=0.35in,bottom=0.35in]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage[hidelinks]{hyperref}
+\urlstyle{same}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0pt}
+\setlength{\tabcolsep}{0pt}
 \pagestyle{empty}
-\begin{document}
-\fontsize{10.5}{12.2}\selectfont
+\raggedbottom
 \raggedright
 \emergencystretch=2em
+
+\newcommand{\resumeSection}[1]{\par\vspace{4pt}{\large\scshape #1}\par\hrule\vspace{-5pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{list}{}{\setlength{\leftmargin}{0.15in}\setlength{\labelwidth}{0pt}\setlength{\labelsep}{0pt}\setlength{\itemindent}{0pt}\setlength{\itemsep}{0pt}\setlength{\topsep}{8pt plus 2pt minus 4pt}\setlength{\parsep}{0pt}}}
+\newcommand{\resumeSubHeadingListEnd}{\end{list}}
+\newcommand{\resumeItemListStart}{\begin{list}{\textbullet}{\setlength{\leftmargin}{0.28in}\setlength{\labelwidth}{0.08in}\setlength{\labelsep}{0.08in}\setlength{\itemindent}{0pt}\setlength{\itemsep}{0pt}\setlength{\topsep}{8pt plus 2pt minus 4pt}\setlength{\parsep}{0pt}\setlength{\partopsep}{0pt}}}
+\newcommand{\resumeItemListEnd}{\end{list}\vspace{-5pt}}
+\newcommand{\resumeItem}[1]{\item\small{#1\vspace{-2pt}}}
+\newcommand{\resumeSubheading}[5]{\vspace{-2pt}\item\begin{tabular*}{0.97\textwidth}[t]{@{}p{5.72in}@{\extracolsep{\fill}}r@{}}\textbf{#1} & #2 \\ \textit{\small #3} \small\textbf{#4} & \small #5 \\ \end{tabular*}\vspace{-7pt}}
+\newcommand{\resumeProject}[2]{\vspace{-2pt}\item\textbf{#1} \small{$|$} \small\textbf{#2}\vspace{-4pt}}
+\newcommand{\resumeSkill}[2]{\textbf{#1}{: #2}\\}
+
+\begin{document}
 %%RESUME_CONTENT%%
 \end{document}
