@@ -34,15 +34,25 @@ function projectName(profile, selection) {
 
 export function buildChange(raw, analysis, profile, resume) {
   if (!raw || typeof raw !== 'object') return null;
-  const keyword = analysis.important_keywords.find(x => normalize(x) === normalize(raw.jdKeyword));
-  if (!keyword || analysis.unsupported_keywords.some(x => normalize(x) === normalize(keyword))) return null;
+  const titleEdit = raw.operation === 'experience_title_variant';
+  const keyword = titleEdit ? analysis.target_role : analysis.important_keywords.find(x => normalize(x) === normalize(raw.jdKeyword));
+  if (!keyword || normalize(raw.jdKeyword) !== normalize(keyword) || (!titleEdit && analysis.unsupported_keywords.some(x => normalize(x) === normalize(keyword)))) return null;
   const reason = String(raw.reason ?? '').trim().slice(0, 240);
   if (!reason) return null;
   const confidence = Number(raw.confidence);
   if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) return null;
   const base = { operation: raw.operation, section: raw.section, targetId: raw.targetId, itemId: raw.itemId, order: raw.order, variantIndex: raw.variantIndex };
   let original, proposed, title, conflictKey;
-  if (raw.operation === 'skill_add' && raw.section === 'skills') {
+  if (titleEdit && raw.section === 'experience') {
+    const selected = findSelection(resume, 'experience', raw.targetId);
+    const entry = profile.experience.find(item => item.id === raw.targetId);
+    if (!selected || !entry || !Number.isInteger(raw.variantIndex) || !entry.titleVariants[raw.variantIndex]) return null;
+    original = entry.titleVariants[selected.titleVariant];
+    proposed = entry.titleVariants[raw.variantIndex];
+    if (original === proposed || containsTerm(original, keyword) || !containsTerm(proposed, keyword) || !/\bIntern\b/.test(proposed)) return null;
+    title = `Match verified intern role · ${entry.company}`;
+    conflictKey = `title:${entry.id}`;
+  } else if (raw.operation === 'skill_add' && raw.section === 'skills') {
     const group = resume.skillGroups.find(x => x.label === raw.targetId);
     const skill = profile.skills.find(x => x.id === raw.itemId);
     if (!group || !skill || group.skillIds.includes(skill.id) || !skill.categories.includes(group.label) || !analysis.missing_from_skills?.some(x => normalize(x) === normalize(keyword))) return null;
@@ -131,7 +141,7 @@ export function validateSuggestions(rawSuggestions, analysis, profile, resume) {
 // Preserve substantive, validated local edits when Qwen returns only cosmetic
 // reorders. Both inputs must already have passed buildChange/validateSuggestions.
 export function combineSuggestions(qwenChanges, existingChanges) {
-  const rank = change => ({ skill_add: 0, bullet_variant: 1, project_reorder: 2, bullet_reorder: 3, project_tech_reorder: 4, skill_reorder: 5 })[change.edit.operation] ?? 6;
+  const rank = change => ({ experience_title_variant: 0, skill_add: 1, bullet_variant: 2, project_reorder: 3, bullet_reorder: 4, project_tech_reorder: 5, skill_reorder: 6 })[change.edit.operation] ?? 7;
   const ordered = [...qwenChanges.map(change => ({ change, source: 0 })), ...existingChanges.map(change => ({ change, source: 1 }))]
     .sort((a, b) => rank(a.change) - rank(b.change) || a.source - b.source);
   const seen = new Set();
@@ -148,6 +158,14 @@ export function combineSuggestions(qwenChanges, existingChanges) {
 export function fallbackSuggestions(analysis, profile, resume) {
   const candidates = [];
   const skillFor = keyword => profile.skills.find(s => [s.label, ...(s.aliases ?? [])].some(x => normalize(x) === normalize(keyword)));
+  if (analysis.target_role) {
+    for (const selected of resume.experience) {
+      const entry = profile.experience.find(item => item.id === selected.entryId);
+      const variantIndex = entry.titleVariants.findIndex(title => containsTerm(title, analysis.target_role) && /\bIntern\b/.test(title));
+      if (variantIndex < 0 || variantIndex === selected.titleVariant) continue;
+      candidates.push({ operation: 'experience_title_variant', section: 'experience', targetId: entry.id, itemId: '', order: [], variantIndex, reason: `Use the existing verified intern title aligned with the ${analysis.target_role} posting.`, jdKeyword: analysis.target_role, confidence: 0.9 });
+    }
+  }
   for (const keyword of analysis.missing_from_skills ?? analysis.missing_but_verified) {
     const skill = skillFor(keyword);
     const group = resume.skillGroups.find(g => skill?.categories.includes(g.label));
@@ -207,7 +225,8 @@ export function applyApproved(resume, changes, approvedIds) {
   if (!Array.isArray(approvedIds) || approvedIds.some(id => !known.has(id)) || new Set(approvedIds).size !== approvedIds.length) throw new Error('Invalid approved change IDs');
   for (const change of changes.filter(x => approvedIds.includes(x.id))) {
     const e = change.edit;
-    if (e.operation === 'skill_add') result.skillGroups.find(x => x.label === e.targetId).skillIds.push(e.itemId);
+    if (e.operation === 'experience_title_variant') findSelection(result, 'experience', e.targetId).titleVariant = e.variantIndex;
+    else if (e.operation === 'skill_add') result.skillGroups.find(x => x.label === e.targetId).skillIds.push(e.itemId);
     else if (e.operation === 'skill_reorder') result.skillGroups.find(x => x.label === e.targetId).skillIds = [...e.order];
     else if (e.operation === 'project_tech_reorder') findSelection(result, 'projects', e.targetId).techSkillIds = [...e.order];
     else if (e.operation === 'project_reorder') result.projects = e.order.map(id => result.projects.find(project => project.entryId === id));

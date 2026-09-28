@@ -6,6 +6,7 @@ import { buildChange, validateSuggestions, fallbackSuggestions, combineSuggestio
 import { renderLatex, escapeLatex } from '../src/latex.js';
 import { outputFilename } from '../src/compiler.js';
 import { createKymaProvider } from '../src/providers/kyma.js';
+import { targetRoleFor } from '../src/role.js';
 
 const { profile, resumes } = await loadData();
 
@@ -160,6 +161,34 @@ test('verified project wording can surface exact JD terms without changing the u
     const tex = await renderLatex(profile, tailored);
     assert.ok(containsTerm(tex, keyword));
   }
+});
+
+test('backend and DevOps postings select only existing Intern title variants', async () => {
+  assert.equal(targetRoleFor('Senior Backend Engineer'), 'Backend Engineer');
+  assert.equal(targetRoleFor('DevOps Engineer'), 'DevOps Engineer');
+  assert.equal(targetRoleFor('Frontend Engineer'), null);
+  for (const [title, role, expected] of [
+    ['Backend Engineer', 'Backend Engineer', ['datadog_2026', 'intact_2025']],
+    ['DevOps Engineer', 'DevOps Engineer', ['intact_2025']]
+  ]) {
+    const analysis = { ...analyzeMatches(`We need a ${title} with Java and Go experience.`, { recommended_resume: 'backend_infra', job_category: 'backend_swe', important_keywords: ['Java', 'Go'] }, profile, resumes), target_role: role };
+    const changes = fallbackSuggestions(analysis, profile, resumes.backend_infra);
+    const titles = changes.filter(change => change.edit.operation === 'experience_title_variant');
+    assert.deepEqual(titles.map(change => change.edit.targetId), expected);
+    assert.ok(titles.every(change => change.proposed.includes('Intern')));
+    const tailored = applyApproved(resumes.backend_infra, changes, titles.map(change => change.id));
+    const tex = await renderLatex(profile, tailored);
+    assert.ok(tex.includes(role));
+    assert.ok(tex.includes('May 2026'));
+    assert.ok(tex.includes('May 2025'));
+  }
+});
+
+test('model cannot invent an experience title or remove Intern', () => {
+  const analysis = { ...analyzeMatches('Backend Engineer with Java and Go.', { recommended_resume: 'backend_infra', job_category: 'backend_swe', important_keywords: ['Java', 'Go'] }, profile, resumes), target_role: 'Backend Engineer' };
+  const proposal = { operation: 'experience_title_variant', section: 'experience', targetId: 'datadog_2026', itemId: '', order: [], variantIndex: 99, reason: 'Match posting', jdKeyword: 'Backend Engineer', confidence: 0.9 };
+  assert.equal(buildChange(proposal, analysis, profile, resumes.backend_infra), null);
+  assert.equal(buildChange({ ...proposal, variantIndex: 2, jdKeyword: 'DevOps Engineer' }, analysis, profile, resumes.backend_infra), null);
 });
 
 test('Kyma adapter sends the documented Qwen model ID and JSON mode', async () => {

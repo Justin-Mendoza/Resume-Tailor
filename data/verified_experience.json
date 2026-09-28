@@ -54,7 +54,7 @@
   "experience": [
     {
       "id":"datadog_2026","company":"Datadog","location":"New York, NY","dates":"May 2026 – Aug. 2026",
-      "titleVariants":["Software Engineer Intern (Go, TypeScript, Kubernetes, AWS/GCP/Azure)","Software Engineer Intern - Workload Placement (Go, Kubernetes, AWS/GCP/Azure)"],
+      "titleVariants":["Software Engineer Intern (Go, TypeScript, Kubernetes, AWS/GCP/Azure)","Software Engineer Intern - Workload Placement (Go, Kubernetes, AWS/GCP/Azure)","Backend Engineer Intern (Go, TypeScript, Kubernetes, AWS/GCP/Azure)"],
       "bullets":[
         {"id":"dd_gpu","text":"Surfaced $100,000+ in underutilized GPU reservations to AI Platform teams, replacing per-cloud manual audits with one view of fleet-wide capacity for 3,000+ engineers.","emphasis":["$100,000+","3,000+ engineers"],"skillIds":["aws","gcp","azure"]},
         {"id":"dd_ingest","text":"Engineered a provider-agnostic ingestion layer in Go correlating Datadog metrics against AWS, GCP, and Azure reservation records, so onboarding a new provider requires no rewrites.","variants":["Engineered a provider-agnostic ingestion layer in Go correlating Kubernetes and Datadog metrics with AWS, GCP, and Azure reservation records, enabling new cloud providers without rewrites."],"skillIds":["go","datadog","kubernetes","aws","gcp","azure"]},
@@ -64,7 +64,7 @@
     },
     {
       "id":"intact_2025","company":"Intact Financial Corp.","location":"Montreal, QC","dates":"May 2025 – Aug. 2025",
-      "titleVariants":["Software Engineer Intern - DevOps (Java Spring Boot, OpenShift, Jenkins, ArgoCD)"],
+      "titleVariants":["Software Engineer Intern - DevOps (Java Spring Boot, OpenShift, Jenkins, ArgoCD)","DevOps Engineer Intern (Java Spring Boot, OpenShift, Jenkins, ArgoCD)","Backend Engineer Intern (Java Spring Boot, OpenShift, Jenkins, ArgoCD)"],
       "bullets":[
         {"id":"if_onboard","text":"Built Java Spring Boot automation for onboarding workflows, eliminating manual provisioning steps for 20+ product teams.","variants":["Automated onboarding workflows in Java Spring Boot, removing manual provisioning steps for 20+ product teams."],"skillIds":["java","spring_boot"]},
         {"id":"if_cicd","text":"Built and tuned CI/CD pipelines across OpenShift, Jenkins, and ArgoCD, reducing deployment time by 20% across 4 services.","skillIds":["openshift","jenkins","argocd"]},
