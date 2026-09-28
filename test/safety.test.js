@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadData } from '../src/data.js';
-import { analyzeMatches } from '../src/matcher.js';
+import { analyzeMatches, containsTerm } from '../src/matcher.js';
 import { buildChange, validateSuggestions, fallbackSuggestions, combineSuggestions, applyApproved } from '../src/editor.js';
 import { renderLatex, escapeLatex } from '../src/latex.js';
 import { outputFilename } from '../src/compiler.js';
@@ -139,6 +139,27 @@ test('Qwen reorder-only output cannot displace stronger verified edits', () => {
   assert.ok(combined.length <= 5);
   assert.equal(new Set(combined.map(change => change.conflictKey)).size, combined.length);
   assert.deepEqual(combined.map(change => change.id), combined.map((_, index) => `change_${index + 1}`));
+});
+
+test('verified project wording can surface exact JD terms without changing the underlying claims', async () => {
+  for (const [keyword, entryId, bulletId, skillId] of [
+    ['Hybrid Search', 'search', 'search_relevance', 'hybrid_search'],
+    ['RAG', 'search', 'search_index', 'rag'],
+    ['Qwen API', 'resume_tailor', 'rt_pipeline', 'qwen_api']
+  ]) {
+    const jd = `This software engineering role requires ${keyword} in production projects.`;
+    const analysis = analyzeMatches(jd, { recommended_resume: 'ai_search_ml', job_category: 'software_engineering', important_keywords: [keyword] }, profile, resumes);
+    const bullet = profile.projects.find(entry => entry.id === entryId).bullets.find(item => item.id === bulletId);
+    assert.ok(bullet.skillIds.includes(skillId));
+    const change = fallbackSuggestions(analysis, profile, resumes.ai_search_ml)
+      .find(item => item.edit.operation === 'bullet_variant' && item.edit.targetId === entryId && item.edit.itemId === bulletId);
+    assert.ok(change, `Expected a verified wording option for ${keyword}`);
+    assert.ok(!containsTerm(change.original, keyword));
+    assert.ok(containsTerm(change.proposed, keyword));
+    const tailored = applyApproved(resumes.ai_search_ml, [change], [change.id]);
+    const tex = await renderLatex(profile, tailored);
+    assert.ok(containsTerm(tex, keyword));
+  }
 });
 
 test('Kyma adapter sends the documented Qwen model ID and JSON mode', async () => {
