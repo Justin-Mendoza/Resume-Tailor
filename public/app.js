@@ -88,8 +88,11 @@ $('job-form').addEventListener('submit', async event => {
     current = value;
     $('recommended-resume').textContent = value.resumeTitle;
     $('job-category').textContent = value.analysis.job_category.replaceAll('_', ' ');
+    const coverage = value.analysis.coverage;
+    $('coverage-summary').textContent = `${coverage.exact_on_resume} exact JD terms already appear on this resume; ${coverage.equivalent_on_resume} more use equivalent verified wording. ${coverage.verified_in_jd} of ${coverage.total} extracted terms are supported by your profile. The 27–34 goal applies only when the posting and verified experience support that many distinct terms.`;
     renderChips('important-keywords', value.analysis.important_keywords);
-    renderChips('matched-keywords', value.analysis.matched_keywords, 'matched');
+    renderChips('matched-keywords', value.analysis.exact_keywords, 'matched');
+    renderChips('equivalent-keywords', value.analysis.equivalent_keywords, 'missing');
     renderChips('missing-keywords', value.analysis.missing_but_verified, 'missing');
     renderChips('missing-skills-keywords', value.analysis.missing_from_skills ?? [], 'missing');
     renderChips('unsupported-keywords', value.analysis.unsupported_keywords, 'unsupported-chip');

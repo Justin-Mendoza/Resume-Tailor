@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadData, isConfigured } from '../src/data.js';
-import { analyzeMatches } from '../src/matcher.js';
+import { analyzeMatches, containsTerm } from '../src/matcher.js';
 
 const { profile, resumes } = await loadData();
 
@@ -27,4 +27,30 @@ test('keyword matching recognizes exact verified phrases outside the skills list
   assert.ok(analysis.matched_keywords.includes('Distributed Systems'));
   assert.ok(!analysis.unsupported_keywords.includes('Distributed Systems'));
   assert.ok(!analysis.missing_from_skills.includes('JSON Schema'));
+});
+
+test('analysis fills in exact verified JD technologies omitted by Qwen without padding to a quota', () => {
+  const jd = 'Backend engineers use Python, PostgreSQL, Docker, Kubernetes, AWS, Kafka, REST APIs, Redis, and FastAPI. We also use Ruby on Rails.';
+  const analysis = analyzeMatches(jd, { recommended_resume: 'backend_infra', job_category: 'backend_swe', important_keywords: ['Python', 'Ruby on Rails'] }, profile, resumes);
+  for (const term of ['PostgreSQL', 'Docker', 'Kubernetes', 'AWS', 'Kafka', 'REST APIs', 'Redis', 'FastAPI']) assert.ok(analysis.important_keywords.includes(term));
+  assert.equal(analysis.coverage.total, analysis.important_keywords.length);
+  assert.equal(analysis.coverage.verified_in_jd, analysis.coverage.total - analysis.coverage.unsupported);
+  assert.ok(analysis.coverage.exact_on_resume < 27);
+  assert.ok(analysis.unsupported_keywords.includes('Ruby on Rails'));
+});
+
+test('short Go keyword does not match ordinary lowercase prose', () => {
+  const analysis = analyzeMatches('We go to production with Python.', { recommended_resume: 'general_swe', job_category: 'software_engineering', important_keywords: [] }, profile, resumes);
+  assert.ok(analysis.important_keywords.includes('Python'));
+  assert.ok(!analysis.important_keywords.includes('Go'));
+});
+
+test('coverage does not count a verified alias as exact resume wording', () => {
+  const jd = 'Amazon Web Services and Node.js are required.';
+  const analysis = analyzeMatches(jd, { recommended_resume: 'general_swe', job_category: 'backend_swe', important_keywords: [] }, profile, resumes);
+  assert.ok(analysis.equivalent_keywords.includes('Amazon Web Services'));
+  assert.ok(!analysis.exact_keywords.includes('Amazon Web Services'));
+  assert.ok(analysis.exact_keywords.includes('Node.js'));
+  assert.ok(containsTerm('Python.', 'Python'));
+  assert.ok(containsTerm('Node.js, Express.js', 'Node.js'));
 });

@@ -2,6 +2,8 @@
 
 A local web app for tailoring Justin Mendoza's three verified resume versions to a job description. Qwen 3.8 Flash analyzes the posting; the app immediately proposes structured, verified-data-only edits. You can optionally ask Qwen to refine those edits. The server validates every operation against `data/verified_experience.json`, keeps substantive verified suggestions ahead of cosmetic reorders, shows a diff, applies only approved edits, and renders LaTeX into a PDF.
 
+The alignment view supplements Qwen's list with exact technology terms found in the posting and the verified profile. It separates exact resume wording from equivalent aliases, verified terms not yet displayed, and unsupported terms. The requested 27–34 keyword range is a conditional goal, not a quota: the app reports how many distinct, verified terms actually occur in the posting and never inserts an unsupported term to reach a number.
+
 ## Run locally
 
 1. Use Node.js 20 or newer.
