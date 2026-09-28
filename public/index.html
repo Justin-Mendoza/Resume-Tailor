@@ -29,7 +29,7 @@
           <label>Company<input id="company" name="company" placeholder="Company name" required maxlength="120"></label>
         </div>
         <label class="wide-label">Job description<textarea id="job-description" name="jobDescription" placeholder="Paste the full job description here…" required minlength="80"></textarea></label>
-        <div class="form-foot"><span>The posting goes to Qwen for analysis. Verified resume content is sent only if you request refinement.</span><button id="analyze-button" type="submit">Analyze job <span aria-hidden="true">↗</span></button></div>
+        <div class="form-foot"><span>The posting and relevant verified resume content go to Qwen for analysis and automatic refinement. PDFs and contact details stay local.</span><button id="analyze-button" type="submit">Analyze job <span aria-hidden="true">↗</span></button></div>
       </form>
     </section>
 
@@ -47,7 +47,7 @@
 
     <section id="changes-section" class="panel hidden" aria-labelledby="changes-heading">
       <div class="section-head"><span class="step">03</span><div><h2 id="changes-heading">Review changes</h2><p>Approve or reject each exact edit. Nothing is applied until you compile.</p></div></div>
-      <div class="refine-row"><p>Verified suggestions are ready now. Optionally ask Qwen to refine them; substantive verified edits stay ahead of cosmetic reorders. This can take up to 2 minutes and resets approvals if new edits are found.</p><button id="refine-button" class="secondary" type="button">Ask Qwen to refine</button></div>
+      <div class="refine-row"><p id="refine-status" role="status" aria-live="polite">Qwen refinement starts automatically after analysis. Verified suggestions stay available if it cannot finish.</p><button id="refine-button" class="secondary" type="button">Retry Qwen refinement</button></div>
       <div id="analysis-warning" class="notice hidden"></div>
       <div id="changes-list"></div>
       <div class="compile-bar"><span id="review-count">0 of 0 reviewed</span><button id="compile-button" type="button" disabled>Compile resume <span aria-hidden="true">↗</span></button></div>
