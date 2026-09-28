@@ -8,6 +8,7 @@ import { analyzeMatches, containsTerm, normalize } from './matcher.js';
 import { validateSuggestions, fallbackSuggestions, combineSuggestions, applyApproved } from './editor.js';
 import { createProvider } from './providers/index.js';
 import { compileResume } from './compiler.js';
+import { targetRoleFor } from './role.js';
 
 const root = path.resolve(import.meta.dirname, '..');
 const envFile = path.join(root, '.env');
@@ -63,7 +64,7 @@ async function analyze(req, res) {
   if (jd.length < 80) throw new Error('Paste a fuller job description (at least 80 characters).');
   const raw = await provider.analyzeJD({ jobTitle, company, jobDescription: jd, resumeChoices: Object.values(resumes).map(({ id, title }) => ({ id, title })) });
   if (!raw || !Array.isArray(raw.important_keywords)) throw new Error('Qwen returned an incomplete job analysis. Try again.');
-  const analysis = analyzeMatches(jd, raw, profile, resumes);
+  const analysis = { ...analyzeMatches(jd, raw, profile, resumes), target_role: targetRoleFor(jobTitle) };
   const resume = resumes[analysis.recommended_resume];
   const relevantSkills = profile.skills.filter(skill => analysis.important_keywords.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword))));
   const relevantBullets = ['experience', 'projects'].flatMap(section => resume[section].map(sel => {
@@ -77,11 +78,12 @@ async function analyze(req, res) {
   const selectedResume = {
     id: resume.id,
     skillGroups: resume.skillGroups.map(group => ({ label: group.label, skills: group.skillIds.map(id => ({ id, label: profile.skills.find(skill => skill.id === id).label })) })),
+    experience: resume.experience.map(selected => ({ entryId: selected.entryId, currentTitle: profile.experience.find(entry => entry.id === selected.entryId).titleVariants[selected.titleVariant], titleVariants: profile.experience.find(entry => entry.id === selected.entryId).titleVariants })),
     projects: resume.projects.map(project => ({ entryId: project.entryId, name: profile.projects.find(entry => entry.id === project.entryId).nameVariants[project.nameVariant], technologies: project.techSkillIds.map(id => ({ id, label: profile.skills.find(skill => skill.id === id).label })) })),
     entries: relevantBullets
   };
   const suggestions = fallbackSuggestions(analysis, profile, resume);
-  const editInput = { jobTitle, jobCategory: analysis.job_category, keywords: analysis.important_keywords, missingButVerified: relevantSkills.filter(skill => analysis.missing_but_verified.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), missingFromSkills: relevantSkills.filter(skill => analysis.missing_from_skills.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), unsupported: analysis.unsupported_keywords, selectedResume, safeCandidates: suggestions.map(({ edit, original, proposed, jdKeyword }) => ({ ...edit, original, proposed, jdKeyword })) };
+  const editInput = { jobTitle, targetRole: analysis.target_role, jobCategory: analysis.job_category, keywords: analysis.important_keywords, missingButVerified: relevantSkills.filter(skill => analysis.missing_but_verified.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), missingFromSkills: relevantSkills.filter(skill => analysis.missing_from_skills.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), unsupported: analysis.unsupported_keywords, selectedResume, safeCandidates: suggestions.map(({ edit, original, proposed, jdKeyword }) => ({ ...edit, original, proposed, jdKeyword })) };
   const warning = suggestions.length ? '' : 'No safe content change was found for this posting. You can still compile the best matching base resume.';
   const id = randomUUID();
   sessions.set(id, { created: Date.now(), profile, resume, changes: suggestions, analysis, editInput, jobTitle, company, pdf: null });
