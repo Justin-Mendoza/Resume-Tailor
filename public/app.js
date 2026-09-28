@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 let current = null;
 let refining = false;
+let analysisGeneration = 0;
 const decisions = new Map();
 
 function showError(message) {
@@ -43,6 +44,17 @@ function updateReviewCount() {
   $('compile-button').disabled = refining || decisions.size !== total;
 }
 
+function setReviewLocked(locked) {
+  $('changes-section').setAttribute('aria-busy', String(locked));
+  for (const input of $('changes-list').querySelectorAll('.decision input')) input.disabled = locked;
+  updateReviewCount();
+}
+
+function showWarning(message) {
+  $('analysis-warning').textContent = message || '';
+  $('analysis-warning').classList.toggle('hidden', !message);
+}
+
 function renderChanges(changes) {
   const list = $('changes-list');
   list.replaceChildren();
@@ -64,7 +76,7 @@ function renderChanges(changes) {
     const controls = document.createElement('div'); controls.className = 'decision-controls';
     for (const [value, label] of [['approve', 'Approve'], ['reject', 'Reject']]) {
       const wrap = document.createElement('label'); wrap.className = 'decision';
-      const radio = document.createElement('input'); radio.type = 'radio'; radio.name = change.id; radio.value = value;
+      const radio = document.createElement('input'); radio.type = 'radio'; radio.name = change.id; radio.value = value; radio.disabled = refining;
       radio.addEventListener('change', () => { decisions.set(change.id, value === 'approve'); updateReviewCount(); });
       const text = document.createElement('span'); text.textContent = label;
       wrap.append(radio, text); controls.append(wrap);
@@ -79,12 +91,48 @@ $('analyze-button').dataset.original = $('analyze-button').textContent;
 $('refine-button').dataset.original = $('refine-button').textContent;
 $('compile-button').dataset.original = $('compile-button').textContent;
 
+async function runRefinement(generation) {
+  if (!current || refining) return;
+  const analysisId = current.analysisId;
+  const button = $('refine-button');
+  refining = true;
+  setBusy(button, true, 'Refining with Qwen…');
+  $('refine-status').textContent = 'Qwen is refining the verified suggestions. Review controls will unlock when it finishes.';
+  setReviewLocked(true);
+  try {
+    const result = await post('/api/refine', { analysisId });
+    if (generation !== analysisGeneration || current?.analysisId !== analysisId) return;
+    if (result.replaced) {
+      current.changes = result.changes;
+      renderChanges(result.changes);
+      $('output-section').classList.add('hidden');
+    }
+    showWarning(result.warning);
+    $('refine-status').textContent = result.warning ? 'Verified suggestions are ready to review. You can retry Qwen if you want.' : 'Qwen refinement is complete. Review each proposed change.';
+  } catch {
+    if (generation !== analysisGeneration || current?.analysisId !== analysisId) return;
+    showWarning('Qwen refinement could not finish. Your verified suggestions are unchanged.');
+    $('refine-status').textContent = 'Verified suggestions are ready to review. You can retry Qwen if you want.';
+  } finally {
+    if (generation === analysisGeneration && current?.analysisId === analysisId) {
+      refining = false;
+      setBusy(button, false);
+      setReviewLocked(false);
+    }
+  }
+}
+
 $('job-form').addEventListener('submit', async event => {
   event.preventDefault(); clearError();
+  const generation = ++analysisGeneration;
+  current = null;
+  refining = false;
+  setBusy($('refine-button'), false);
   const button = $('analyze-button'); setBusy(button, true, 'Analyzing…');
   $('analysis-section').classList.add('hidden'); $('changes-section').classList.add('hidden'); $('output-section').classList.add('hidden');
   try {
     const value = await post('/api/analyze', { jobTitle: $('job-title').value, company: $('company').value, jobDescription: $('job-description').value });
+    if (generation !== analysisGeneration) return;
     current = value;
     $('recommended-resume').textContent = value.resumeTitle;
     $('job-category').textContent = value.analysis.job_category.replaceAll('_', ' ');
@@ -93,36 +141,16 @@ $('job-form').addEventListener('submit', async event => {
     renderChips('missing-keywords', value.analysis.missing_but_verified, 'missing');
     renderChips('missing-skills-keywords', value.analysis.missing_from_skills ?? [], 'missing');
     renderChips('unsupported-keywords', value.analysis.unsupported_keywords, 'unsupported-chip');
-    $('analysis-warning').textContent = value.warning || '';
-    $('analysis-warning').classList.toggle('hidden', !value.warning);
+    showWarning(value.warning);
     renderChanges(value.changes);
     $('analysis-section').classList.remove('hidden'); $('changes-section').classList.remove('hidden');
     $('analysis-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch (error) { showError(error.message); }
-  finally { setBusy(button, false); }
+    void runRefinement(generation);
+  } catch (error) { if (generation === analysisGeneration) showError(error.message); }
+  finally { if (generation === analysisGeneration) setBusy(button, false); }
 });
 
-$('refine-button').addEventListener('click', async () => {
-  if (!current) return;
-  clearError();
-  const analysisId = current.analysisId;
-  const button = $('refine-button');
-  refining = true;
-  setBusy(button, true, 'Asking Qwen…');
-  updateReviewCount();
-  try {
-    const result = await post('/api/refine', { analysisId });
-    if (current?.analysisId !== analysisId) return;
-    if (result.replaced) {
-      current.changes = result.changes;
-      renderChanges(result.changes);
-      $('output-section').classList.add('hidden');
-    }
-    $('analysis-warning').textContent = result.warning || '';
-    $('analysis-warning').classList.toggle('hidden', !result.warning);
-  } catch (error) { showError(error.message); }
-  finally { refining = false; setBusy(button, false); updateReviewCount(); }
-});
+$('refine-button').addEventListener('click', () => { clearError(); void runRefinement(analysisGeneration); });
 
 $('compile-button').addEventListener('click', async () => {
   if (!current) return;
