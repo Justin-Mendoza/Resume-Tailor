@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadData } from '../src/data.js';
 import { analyzeMatches } from '../src/matcher.js';
-import { buildChange, validateSuggestions, fallbackSuggestions, applyApproved } from '../src/editor.js';
+import { buildChange, validateSuggestions, fallbackSuggestions, combineSuggestions, applyApproved } from '../src/editor.js';
 import { renderLatex, escapeLatex } from '../src/latex.js';
 import { outputFilename } from '../src/compiler.js';
 import { createKymaProvider } from '../src/providers/kyma.js';
@@ -125,6 +125,22 @@ test('project reorder validation rejects invented IDs and changes unrelated to t
   assert.equal(buildChange({ ...base, order: ['resume_tailor', 'search', 'video'] }, analysis, profile, resumes.general_swe), null);
 });
 
+test('Qwen reorder-only output cannot displace stronger verified edits', () => {
+  const analysis = analyzeMatches('Kubernetes and Python are required for backend infrastructure.', { recommended_resume: 'general_swe', job_category: 'backend', important_keywords: ['Kubernetes', 'Python'] }, profile, resumes);
+  const local = fallbackSuggestions(analysis, profile, resumes.general_swe);
+  const variant = local.find(change => change.edit.operation === 'bullet_variant');
+  assert.ok(variant);
+  const group = resumes.general_swe.skillGroups.find(item => item.label === 'Languages');
+  const reorder = validateSuggestions([{ operation: 'skill_reorder', section: 'skills', targetId: group.label, itemId: '', order: ['python', ...group.skillIds.filter(id => id !== 'python')], variantIndex: 0, reason: 'Surface Python first', jdKeyword: 'Python', confidence: 0.8 }], analysis, profile, resumes.general_swe);
+  assert.equal(reorder.length, 1);
+  const combined = combineSuggestions(reorder, local);
+  assert.ok(combined.some(change => change.edit.operation === 'bullet_variant'));
+  assert.ok(combined.some(change => change.edit.operation === 'skill_reorder'));
+  assert.ok(combined.length <= 5);
+  assert.equal(new Set(combined.map(change => change.conflictKey)).size, combined.length);
+  assert.deepEqual(combined.map(change => change.id), combined.map((_, index) => `change_${index + 1}`));
+});
+
 test('Kyma adapter sends the documented Qwen model ID and JSON mode', async () => {
   const provider = createKymaProvider({ apiKey: 'test-key', model: 'qwen-3.8-flash', fetchImpl: async (url, options) => {
     assert.equal(url, 'https://kymaapi.com/v1/chat/completions');
@@ -161,4 +177,17 @@ test('Qwen refinement defaults to 60 seconds and cannot exceed the 120-second ma
   });
   await cappedProvider.suggestEdits({});
   assert.equal(seenTimeouts.pop(), 120_000);
+});
+
+test('Qwen prompt prioritizes verified skill additions and wording over cosmetic reorders', async () => {
+  const provider = createKymaProvider({ apiKey: 'test-key', fetchImpl: async (_url, options) => {
+    const body = JSON.parse(options.body);
+    const prompt = body.messages[0].content;
+    assert.match(prompt, /missingFromSkills/);
+    assert.match(prompt, /bullet variant/);
+    assert.match(prompt, /safeCandidates/);
+    assert.match(prompt, /never as the entire answer/);
+    return { ok: true, json: async () => ({ choices: [{ message: { content: '{"suggested_changes":[]}' } }] }) };
+  } });
+  await provider.suggestEdits({});
 });

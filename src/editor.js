@@ -128,6 +128,23 @@ export function validateSuggestions(rawSuggestions, analysis, profile, resume) {
   return changes;
 }
 
+// Preserve substantive, validated local edits when Qwen returns only cosmetic
+// reorders. Both inputs must already have passed buildChange/validateSuggestions.
+export function combineSuggestions(qwenChanges, existingChanges) {
+  const rank = change => ({ skill_add: 0, bullet_variant: 1, project_reorder: 2, bullet_reorder: 3, project_tech_reorder: 4, skill_reorder: 5 })[change.edit.operation] ?? 6;
+  const ordered = [...qwenChanges.map(change => ({ change, source: 0 })), ...existingChanges.map(change => ({ change, source: 1 }))]
+    .sort((a, b) => rank(a.change) - rank(b.change) || a.source - b.source);
+  const seen = new Set();
+  const combined = [];
+  for (const { change } of ordered) {
+    if (seen.has(change.conflictKey)) continue;
+    seen.add(change.conflictKey);
+    combined.push({ ...change, id: `change_${combined.length + 1}` });
+    if (combined.length === 5) break;
+  }
+  return combined;
+}
+
 export function fallbackSuggestions(analysis, profile, resume) {
   const candidates = [];
   const skillFor = keyword => profile.skills.find(s => [s.label, ...(s.aliases ?? [])].some(x => normalize(x) === normalize(keyword)));
