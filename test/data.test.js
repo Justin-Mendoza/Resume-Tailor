@@ -20,3 +20,11 @@ test('keyword comparison separates present, verified missing, and unsupported te
   assert.ok(analysis.missing_but_verified.includes('Node.js'));
   assert.deepEqual(analysis.unsupported_keywords, ['Ruby on Rails']);
 });
+
+test('keyword matching recognizes exact verified phrases outside the skills list', () => {
+  const jd = 'Distributed Systems and JSON Schema are important for this software engineering role.';
+  const analysis = analyzeMatches(jd, { recommended_resume: 'general_swe', job_category: 'software_engineering', important_keywords: ['Distributed Systems', 'JSON Schema'] }, profile, resumes);
+  assert.ok(analysis.matched_keywords.includes('Distributed Systems'));
+  assert.ok(!analysis.unsupported_keywords.includes('Distributed Systems'));
+  assert.ok(!analysis.missing_from_skills.includes('JSON Schema'));
+});

@@ -30,6 +30,11 @@ function displayedText(profile, resume) {
   return [...skills, ...projectTech, ...headings, ...bullets, ...education].join(' | ');
 }
 
+function displayedSkills(profile, resume) {
+  return resume.skillGroups.flatMap(group => group.skillIds)
+    .map(id => profile.skills.find(skill => skill.id === id)?.label ?? '').join(' | ');
+}
+
 export function analyzeMatches(jd, raw, profile, resumes) {
   const seen = new Set();
   const keywords = (raw.important_keywords ?? []).filter(x => typeof x === 'string' && containsTerm(jd, x)).filter(x => {
@@ -40,21 +45,22 @@ export function analyzeMatches(jd, raw, profile, resumes) {
   }).slice(0, 30);
   const scores = Object.fromEntries(RESUME_IDS.map(id => {
     const text = displayedText(profile, resumes[id]);
-    const score = keywords.filter(k => {
-      const skill = skillForKeyword(k, profile);
-      return skill && [skill.label, ...(skill.aliases ?? [])].some(alias => containsTerm(text, alias));
-    }).length;
+    const score = keywords.filter(keyword => containsTerm(text, keyword) || [skillForKeyword(keyword, profile)].filter(Boolean).some(skill => [skill.label, ...(skill.aliases ?? [])].some(alias => containsTerm(text, alias)))).length;
     return [id, score];
   }));
   const ranked = [...RESUME_IDS].sort((a, b) => scores[b] - scores[a]);
   const recommended = RESUME_IDS.includes(raw.recommended_resume) && scores[raw.recommended_resume] === scores[ranked[0]] ? raw.recommended_resume : ranked[0];
   const current = displayedText(profile, resumes[recommended]);
-  const matched = [], missing = [], unsupported = [];
+  const skillsText = displayedSkills(profile, resumes[recommended]);
+  const matched = [], missing = [], missingFromSkills = [], unsupported = [];
   for (const keyword of keywords) {
     const skill = skillForKeyword(keyword, profile);
-    if (!skill) unsupported.push(keyword);
-    else if ([skill.label, ...(skill.aliases ?? [])].some(alias => containsTerm(current, alias))) matched.push(keyword);
-    else missing.push(keyword);
+    const present = containsTerm(current, keyword) || (skill && [skill.label, ...(skill.aliases ?? [])].some(alias => containsTerm(current, alias)));
+    if (present) matched.push(keyword);
+    else if (skill) missing.push(keyword);
+    else unsupported.push(keyword);
+    const hasCompatibleGroup = skill?.categories?.some(category => resumes[recommended].skillGroups.some(group => group.label === category));
+    if (skill && hasCompatibleGroup && ![skill.label, ...(skill.aliases ?? [])].some(alias => containsTerm(skillsText, alias))) missingFromSkills.push(keyword);
   }
-  return { recommended_resume: recommended, job_category: String(raw.job_category ?? 'software_engineering').slice(0, 80), important_keywords: keywords, matched_keywords: matched, missing_but_verified: missing, unsupported_keywords: unsupported, scores };
+  return { recommended_resume: recommended, job_category: String(raw.job_category ?? 'software_engineering').slice(0, 80), important_keywords: keywords, matched_keywords: matched, missing_but_verified: missing, missing_from_skills: missingFromSkills, unsupported_keywords: unsupported, scores };
 }
