@@ -6,7 +6,14 @@ A local web app for tailoring Justin Mendoza's three verified resume versions to
 
 1. Use Node.js 20 or newer.
 2. Put your Kyma API key in `.env` as `KYMA_API_KEY=...`. The app uses `KYMA_MODEL` if set; the default is `qwen3.8-flash`. It accepts the `qwen-3.8-flash` spelling in the current `.env` and sends Kyma's documented `qwen3.8-flash` model ID. Optionally set `KYMA_BASE_URL` for another Kyma-compatible endpoint. Qwen refinement defaults to 60 seconds (`KYMA_REFINE_TIMEOUT_MS`) and is capped at 120 seconds.
-3. Install a local TeX distribution that provides `latexmk` or `pdflatex` and the `geometry` and `hyperref` packages. On macOS, the app also checks `/Library/TeX/texbin`, so BasicTeX works before you restart your terminal.
+3. Install a local TeX distribution that provides `latexmk` or `pdflatex`. The templates use the original Overleaf `fullpage` (TeX Live package `preprint`), `titlesec`, and `enumitem` packages, plus `hyperref`, `fancyhdr`, `babel`, `tabularx`, and Computer Modern fonts. On macOS, the app also checks `/Library/TeX/texbin`. For BasicTeX, install the additional packages in your user TeX folder (no admin password):
+
+   ```sh
+   /Library/TeX/texbin/tlmgr --usermode init-usertree
+   /Library/TeX/texbin/tlmgr --usermode install preprint titlesec enumitem cm-super
+   ```
+
+   Run `init-usertree` only on first setup; skip it if the user tree already exists.
 4. Run `npm start` and open `http://127.0.0.1:3001`. Set `PORT` if you need a different port.
 
 No npm install is required. The server binds only to localhost. The Kyma key is read by the server and is never sent to the browser. The job description and resume-category names go to Qwen for analysis. Selected resume structure and relevant verified facts are sent only if you click **Ask Qwen for alternatives**; the app does not upload PDFs or contact details. Approved PDFs are saved in the ignored `output/pdf/` directory. Optional Qwen refinement may time out; existing suggestions and decisions remain available if it does.
@@ -19,7 +26,7 @@ No npm install is required. The server binds only to localhost. The Kyma key is 
 - `/Users/justin/Documents/Justin_Mendoza_AI.pdf` → AI / Search / ML Infrastructure
 - `/Users/justin/Documents/Justin_Mendoza_INFRA.pdf` → Backend / Infrastructure
 
-The three selection files in `data/resumes/` refer to verified skill, employer, project, bullet, and education IDs. Version-specific wording found in the PDFs is stored as `variants` and is the only wording the model may select. `templates/` contains deterministic LaTeX layouts based on the supplied Overleaf `main.tex`; the content remains structured data, and only explicit emphasis metadata controls bold text. The layout uses BasicTeX-compatible LaTeX commands rather than depending on packages absent from a BasicTeX installation. Review the transcribed profile before relying on it for applications.
+The three selection files in `data/resumes/` refer to verified skill, employer, project, bullet, and education IDs. Version-specific wording found in the PDFs is stored as `variants` and is the only wording the model may select. `templates/` preserves the supplied Overleaf `main.tex` margins, section formatting, nested itemize lists, and font defaults; the content remains structured data, and only explicit emphasis metadata controls bold text. The original formatting packages must be installed; the renderer does not substitute approximate list spacing. Review the transcribed profile before relying on it for applications.
 
 The model can propose adding an already verified skill to a compatible skill group, reordering skills, reordering project technologies or bullets, or selecting a preverified bullet variant. It cannot send new resume prose or LaTeX. The validation layer rejects unknown IDs, unsupported JD terms, incompatible skill groups, invalid permutations, and unapproved operations. Company names, dates, education, metrics, and accomplishments come only from the checked profile.
 
