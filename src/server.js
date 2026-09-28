@@ -5,7 +5,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { loadData, isConfigured } from './data.js';
 import { analyzeMatches, containsTerm, normalize } from './matcher.js';
-import { validateSuggestions, fallbackSuggestions, applyApproved } from './editor.js';
+import { validateSuggestions, fallbackSuggestions, combineSuggestions, applyApproved } from './editor.js';
 import { createProvider } from './providers/index.js';
 import { compileResume } from './compiler.js';
 
@@ -70,17 +70,18 @@ async function analyze(req, res) {
     const entry = profile[section].find(x => x.id === sel.entryId);
     return { section, entryId: entry.id, bulletIds: sel.bulletIds, relevantBullets: sel.bulletIds.map(id => {
       const bullet = entry.bullets.find(x => x.id === id);
-      return { id, text: bullet.text, variants: bullet.variants ?? [], skillIds: bullet.skillIds ?? [] };
-    }).filter(bullet => analysis.important_keywords.some(keyword => containsTerm(bullet.text, keyword) || bullet.skillIds.some(id => relevantSkills.some(skill => skill.id === id)))) };
+      const variantIndex = resume.variants?.[`${section}:${entry.id}:${id}`];
+      return { id, currentText: variantIndex === undefined ? bullet.text : bullet.variants[variantIndex], variants: bullet.variants ?? [], skillIds: bullet.skillIds ?? [] };
+    }).filter(bullet => analysis.important_keywords.some(keyword => containsTerm(bullet.currentText, keyword) || bullet.variants.some(variant => containsTerm(variant, keyword)) || bullet.skillIds.some(id => relevantSkills.some(skill => skill.id === id)))) };
   })).filter(entry => entry.relevantBullets.length);
   const selectedResume = {
     id: resume.id,
     skillGroups: resume.skillGroups.map(group => ({ label: group.label, skills: group.skillIds.map(id => ({ id, label: profile.skills.find(skill => skill.id === id).label })) })),
-    projects: resume.projects.map(project => ({ entryId: project.entryId, technologies: project.techSkillIds.map(id => ({ id, label: profile.skills.find(skill => skill.id === id).label })) })),
+    projects: resume.projects.map(project => ({ entryId: project.entryId, name: profile.projects.find(entry => entry.id === project.entryId).nameVariants[project.nameVariant], technologies: project.techSkillIds.map(id => ({ id, label: profile.skills.find(skill => skill.id === id).label })) })),
     entries: relevantBullets
   };
-  const editInput = { jobTitle, jobCategory: analysis.job_category, keywords: analysis.important_keywords, missingButVerified: relevantSkills.filter(skill => analysis.missing_but_verified.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), missingFromSkills: relevantSkills.filter(skill => analysis.missing_from_skills.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), unsupported: analysis.unsupported_keywords, selectedResume };
   const suggestions = fallbackSuggestions(analysis, profile, resume);
+  const editInput = { jobTitle, jobCategory: analysis.job_category, keywords: analysis.important_keywords, missingButVerified: relevantSkills.filter(skill => analysis.missing_but_verified.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), missingFromSkills: relevantSkills.filter(skill => analysis.missing_from_skills.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), unsupported: analysis.unsupported_keywords, selectedResume, safeCandidates: suggestions.map(({ edit, original, proposed, jdKeyword }) => ({ ...edit, original, proposed, jdKeyword })) };
   const warning = suggestions.length ? '' : 'No safe content change was found for this posting. You can still compile the best matching base resume.';
   const id = randomUUID();
   sessions.set(id, { created: Date.now(), profile, resume, changes: suggestions, analysis, editInput, jobTitle, company, pdf: null });
@@ -94,9 +95,9 @@ async function refine(req, res) {
     const rawEdits = await provider.suggestEdits(session.editInput);
     const suggestions = validateSuggestions(rawEdits?.suggested_changes, session.analysis, session.profile, session.resume);
     if (!suggestions.length) return sendJson(res, 200, { changes: publicChanges(session.changes), warning: 'Qwen proposed no valid changes. Your existing suggestions are unchanged.', replaced: false });
-    session.changes = suggestions;
+    session.changes = combineSuggestions(suggestions, session.changes);
     session.pdf = null;
-    return sendJson(res, 200, { changes: publicChanges(suggestions), warning: '', replaced: true });
+    return sendJson(res, 200, { changes: publicChanges(session.changes), warning: '', replaced: true });
   } catch {
     return sendJson(res, 200, { changes: publicChanges(session.changes), warning: 'Qwen refinement did not finish. Your existing suggestions are unchanged.', replaced: false });
   }
