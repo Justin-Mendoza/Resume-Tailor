@@ -74,8 +74,8 @@
   ],
   "projects": [
     {"id":"search","nameVariants":["Enterprise Search Engine","Enterprise AI Search Engine"],"url":"https://github.com/Justin-Mendoza/hybrid-rag-search","bullets":[
-      {"id":"search_relevance","text":"Improved search relevance by 12% (nDCG@10) over dense-only retrieval by combining BM25, vector search, reciprocal-rank fusion, and neural reranking.","skillIds":["bm25","vector_search","neural_reranking","hybrid_search"]},
-      {"id":"search_index","text":"Indexed 10,000+ document chunks through resumable ingestion while enforcing authorization across retrieval, caching, and citations with zero cross-tenant leakage in security tests.","skillIds":["rag"]},
+      {"id":"search_relevance","text":"Improved search relevance by 12% (nDCG@10) over dense-only retrieval by combining BM25, vector search, reciprocal-rank fusion, and neural reranking.","variants":["Improved hybrid search relevance by 12% (nDCG@10) over dense-only retrieval by combining BM25, vector search, reciprocal-rank fusion, and neural reranking."],"skillIds":["bm25","vector_search","neural_reranking","hybrid_search"]},
+      {"id":"search_index","text":"Indexed 10,000+ document chunks through resumable ingestion while enforcing authorization across retrieval, caching, and citations with zero cross-tenant leakage in security tests.","variants":["Indexed 10,000+ document chunks for RAG through resumable ingestion while enforcing authorization across retrieval, caching, and citations with zero cross-tenant leakage in security tests."],"skillIds":["rag"]},
       {"id":"search_load","text":"Sustained 20+ requests/sec in local API load tests while benchmarking retrieval strategies across relevance, p95 latency, throughput, and model costs.","skillIds":["fastapi"]}
     ]},
     {"id":"video","nameVariants":["Video Analytics Distributed System"],"url":"https://github.com/Justin-Mendoza/Kafka-Powered-Video-Metrics-System","bullets":[
@@ -83,7 +83,7 @@
       {"id":"video_services","text":"Split ingestion and delivery into independent producer and consumer services, so a downstream outage buffers in Kafka instead of dropping metrics.","skillIds":["kafka"]}
     ]},
     {"id":"resume_tailor","nameVariants":["Resume Tailor"],"url":"https://github.com/Justin-Mendoza/Resume-Tailor","bullets":[
-      {"id":"rt_pipeline","text":"Built an LLM-assisted resume tailoring pipeline that maps job descriptions to verified experience and proposes role-specific keyword and wording changes.","skillIds":["qwen_api","latex"]},
+      {"id":"rt_pipeline","text":"Built an LLM-assisted resume tailoring pipeline that maps job descriptions to verified experience and proposes role-specific keyword and wording changes.","variants":["Built a Qwen API-assisted resume tailoring pipeline that maps job descriptions to verified experience and proposes role-specific keyword and wording changes."],"skillIds":["qwen_api","latex"]},
       {"id":"rt_validation","text":"Added JSON Schema validation and per-change approval before compiling tailored LaTeX resumes to PDF, preventing unsupported claims.","skillIds":["json_schema","latex"]}
     ]},
     {"id":"vpc","nameVariants":["Secure AWS Virtual Private Cloud"],"url":"https://github.com/Justin-Mendoza/AWS-VPC/tree/main","bullets":[
