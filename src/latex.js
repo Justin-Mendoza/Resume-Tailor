@@ -85,12 +85,12 @@ function renderProjects(profile, resume) {
 
 function renderSkills(profile, resume) {
   if (!resume.skillGroups.length) return '';
-  let out = heading('Technical Skills') + '\\resumeSubHeadingListStart\n\\item{\\small\n';
-  for (const group of resume.skillGroups) {
+  let out = heading('Technical Skills') + '\\resumeSubHeadingListStart\n\\small{\\item{\n';
+  for (const [index, group] of resume.skillGroups.entries()) {
     const values = group.skillIds.map(id => profile.skills.find(s => s.id === id).label).join(', ');
-    out += `\\resumeSkill{${escapeLatex(group.label)}}{${escapeLatex(values)}}\n`;
+    out += `\\resumeSkill{${escapeLatex(group.label)}}{${escapeLatex(values)}}${index < resume.skillGroups.length - 1 ? ' \\\\' : ''}\n`;
   }
-  return out + '}\n\\resumeSubHeadingListEnd\n\\vspace{-14pt}\n';
+  return out + '}}\n\\resumeSubHeadingListEnd\n\\vspace{-14pt}\n';
 }
 
 function renderEducation(profile, resume) {
