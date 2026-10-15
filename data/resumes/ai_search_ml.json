@@ -15,8 +15,11 @@
   "projects": [
     {"entryId":"search","nameVariant":1,"techSkillIds":["python","fastapi","opensearch","cohere","postgresql","redis"],"bulletIds":["search_relevance","search_index","search_load"]},
     {"entryId":"resume_tailor","nameVariant":0,"techSkillIds":["qwen_api","latex","json_schema"],"bulletIds":["rt_pipeline","rt_validation"]},
-    {"entryId":"video","nameVariant":0,"techSkillIds":["python","kafka","confluent_cloud","rest_apis"],"bulletIds":["video_pipeline","video_services"]}
+    {"entryId":"jobwatch","nameVariant":0,"techSkillIds":["go","docker","github_actions","fly_io","rest_apis"],"bulletIds":["jw_polling","jw_reliability"]}
   ],
-  "education": [{"entryId":"concordia"}],
-  "variants": {"experience:datadog_2026:dd_ingest":0}
+  "education": [
+    {"entryId":"concordia"}
+  ],
+  "variants": {"experience:datadog_2026:dd_ingest":0},
+  "sourceDocument": {"filename":"Justin_Mendoza_AI_Infra.pdf","syncedOn":"2026-10-15","sha256":"5d18c2f0cbaf3aa1146bd751e5dbd1f8e57cf3b7e293b55cfa488ead73ac9bf2"}
 }

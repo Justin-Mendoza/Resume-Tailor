@@ -38,6 +38,7 @@ export function validateData(profile, resumes) {
       for (const field of section === 'education' ? ['school', 'degree', 'dates'] : section === 'experience' ? ['company', 'dates'] : []) {
         requireString(entry[field], `${section} ${entry.id} ${field}`);
       }
+      if (section === 'experience' && entry.verifiedDurationMonths !== undefined && (!Number.isFinite(entry.verifiedDurationMonths) || entry.verifiedDurationMonths <= 0)) throw new Error(`Invalid verified duration for ${entry.id}`);
       if (section === 'experience' && !entry.titleVariants?.length) throw new Error(`Missing titles for ${entry.id}`);
       if (section === 'projects' && !entry.nameVariants?.length) throw new Error(`Missing names for ${entry.id}`);
       if (section === 'projects' && !String(entry.url ?? '').startsWith('https://')) throw new Error(`Missing HTTPS project URL for ${entry.id}`);

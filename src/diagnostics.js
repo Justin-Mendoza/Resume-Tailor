@@ -50,3 +50,19 @@ export function jobTitleAlignment(jobTitle, profile, resume) {
 export function resumeDiagnostics(requirements, profile, resume, jobTitle) {
   return { keyword_saturation: keywordSaturation(requirements, profile, resume), job_title_alignment: jobTitleAlignment(jobTitle, profile, resume) };
 }
+
+// Visibility of verified, named JD technologies is separate from demonstrated
+// requirement coverage. A skills declaration can be searchable without proving
+// hands-on use or satisfying a bundled qualification.
+export function technicalKeywordVisibility(requirements, profile, resume) {
+  const text = displayedText(profile, resume);
+  const keywords = profile.skills.filter(s => !s.categories.includes('Spoken')).flatMap(skill => {
+    const terms = [skill.label, ...(skill.aliases ?? [])];
+    const requested = terms.filter(term => requirements.some(r => !r.requires_confirmation && (containsTerm(r.keyword, term) || containsTerm(r.source ?? '', term))));
+    if (!requested.length) return [];
+    const matches = requested.map(term => skillTerms(term, skill).find(alias => containsTerm(text, alias)));
+    const present = matches.every(Boolean);
+    return [{ keyword: requested.length === 1 ? requested[0] : skill.label, jd_terms: requested, present, matched_term: present ? [...new Set(matches)].join(', ') : null }];
+  });
+  return { present: keywords.filter(k => k.present).length, total: keywords.length, keywords, diagnostic_only: true };
+}

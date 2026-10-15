@@ -1,4 +1,5 @@
-import { containsTerm } from './matcher.js';
+import { duplicatesSibling, siblingBullets } from './entry-quality.js';
+import { containsTerm, normalize } from './matcher.js';
 
 export { inferredCompetencies } from './matcher.js';
 
@@ -13,9 +14,17 @@ export function rewriteSources(profile, section, entryId, ids) {
 const numbers = text => text.match(/(?:[$~≈]\s*)?\d[\d,]*(?:\.\d+)?(?:\s*(?:%|\+|x|×))?/g) ?? [];
 const subset = (small, large) => { const copy = [...large]; return small.every(x => { const i = copy.indexOf(x); if (i < 0) return false; copy.splice(i, 1); return true; }); };
 
+function cosmeticAddition(original, proposed) {
+  const old = normalize(original).replace(/\./g, '').split(' ');
+  const added = normalize(proposed).replace(/\./g, '').split(' ');
+  for (const word of old) { const i = added.indexOf(word); if (i < 0) return false; added.splice(i, 1); }
+  return added.length > 0 && added.every(word => ['cloud', 'infrastructure', 'platform', 'engineering', 'software', 'robust', 'scalable', 'reliable'].includes(word));
+}
+
 // Necessary deterministic checks; passing these alone NEVER approves free text.
 export function checkRewrite(original, proposed, sources, profile, analysis) {
   if (typeof proposed !== 'string' || !proposed.trim() || proposed !== proposed.trim() || proposed === original || /[\n\r\\<>\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f]/u.test(proposed)) return false;
+  if (cosmeticAddition(original, proposed)) return false;
   if (proposed.length > Math.max(original.length, 360) || proposed.split(/\s+/).length > 65) return false;
   const sourceText = sources.flatMap(s => [s.text, ...s.variants]).join(' ');
   // Retain original measurements; any extra measurements must occur in evidence.
@@ -57,8 +66,8 @@ export async function reviewRewrites(provider, candidates, analysis, profile, re
     const bullet = profile[raw.section].find(e => e.id === raw.targetId)?.bullets.find(b => b.id === raw.itemId);
     const key = `${raw.section}:${raw.targetId}:${raw.itemId}`;
     const original = resume.rewrites?.[key] ?? (resume.variants?.[key] === undefined ? bullet?.text : bullet?.variants?.[resume.variants[key]]);
-    if (!selection?.bulletIds.includes(raw.itemId) || !sources || !raw.sourceBulletIds.includes(raw.itemId) || !checkRewrite(original, raw.proposed, sources, profile, analysis)) continue;
-    pending.push({ id: `rewrite_${pending.length + 1}`, key: reviewKey(raw), requirement: analysis.requirements?.find(r => r.keyword === raw.jdKeyword), original, proposed: raw.proposed, sources, verifiedSkills: profile.skills.filter(s => sources.some(b => b.skillIds.includes(s.id))).map(s => s.label) });
+    if (!selection?.bulletIds.includes(raw.itemId) || !sources || !raw.sourceBulletIds.includes(raw.itemId) || !checkRewrite(original, raw.proposed, sources, profile, analysis) || duplicatesSibling(profile, resume, raw.section, raw.targetId, raw.itemId, raw.proposed)) continue;
+    pending.push({ id: `rewrite_${pending.length + 1}`, key: reviewKey(raw), requirement: analysis.requirements?.find(r => r.keyword === raw.jdKeyword), original, proposed: raw.proposed, sources, siblingBullets: siblingBullets(profile, resume, raw.section, raw.targetId, raw.itemId), verifiedSkills: profile.skills.filter(s => sources.some(b => b.skillIds.includes(s.id))).map(s => s.label) });
   }
   const reviews = new Map();
   if (!pending.length) return { reviews, confirmations: [] };

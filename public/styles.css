@@ -1803,3 +1803,19 @@ iframe {
 .connection-note-text { line-height: 1.6; overflow-wrap: anywhere; user-select: text; }
 .connection-note-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 #connection-note-count, #connection-note-status { font-size: 12px; }
+
+.confirmation-details { margin: 18px 0; }
+#confirmation-list { padding-left: 22px; line-height: 1.6; overflow-wrap: anywhere; }
+#confirmation-list li + li { margin-top: 12px; }
+
+.job-match { margin: 24px 0; padding: 24px; border: 1px solid var(--line); border-radius: 6px; background: var(--mint); }
+.job-match h3 { margin: 0 0 20px; }
+.job-match-top { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; align-items: center; }
+.job-match-score { font: 48px/1.1 var(--serif); color: var(--green-dark); }
+.job-match-top p { margin: 8px 0; }
+.job-match-note { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.job-match-metrics { display: flex; flex-wrap: wrap; gap: 8px 24px; border-block: 1px solid var(--line); margin: 18px 0; padding: 8px 0; }
+#job-match-details h4 { margin-bottom: 8px; }
+#job-match-details li { margin-bottom: 6px; overflow-wrap: anywhere; }
+
+.review-actions { display: flex; justify-content: flex-end; margin: 16px 0; }

@@ -1,15 +1,17 @@
+import { experienceCatalog } from './work-experience.js';
 import http from 'node:http';
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { loadData, isConfigured } from './data.js';
-import { analyzeMatches, analyzeResumeCoverage, containsTerm, normalize, evidenceCatalog, displayedText } from './matcher.js';
-import { validateSuggestions, fallbackSuggestions, combineSuggestions, applyApproved } from './editor.js';
+import { analyzeMatches, analyzeResumeCoverage, containsTerm, evidenceCatalog, educationCatalog, displayedText } from './matcher.js';
+import { validateSuggestions, applyApproved } from './editor.js';
 import { createProvider } from './providers/index.js';
-import { reviewRewrites, inferredCompetencies, reviewKey } from './rewrite-validation.js';
-import { resumeDiagnostics } from './diagnostics.js';
+import { reviewKey } from './rewrite-validation.js';
+import { resumeDiagnostics, technicalKeywordVisibility } from './diagnostics.js';
 import { createConnectionNote, generateConnectionNote } from './connection-note.js';
+import { refineResume, prepareRefinement } from './refinement.js';
 import { compileResume } from './compiler.js';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -64,28 +66,12 @@ async function analyze(req, res) {
   const company = cleanText(body.company, 'Company', 120);
   const jd = cleanText(body.jobDescription, 'Job description', 50_000);
   if (jd.length < 80) throw new Error('Paste a fuller job description (at least 80 characters).');
-  const raw = await provider.analyzeJD({ jobTitle, company, jobDescription: jd, originalEvidence: [...new Map(Object.values(resumes).flatMap(r => evidenceCatalog(profile, r)).map(b => [b.id, b])).values()], resumeChoices: Object.values(resumes).map(({ id, title }) => ({ id, title })) });
-  if (!raw || (!Array.isArray(raw.requirements) && !Array.isArray(raw.important_keywords))) throw new Error('Qwen returned an incomplete job analysis. Try again.');
+  const raw = await provider.analyzeJD({ jobTitle, company, jobDescription: jd, verifiedEmployment: experienceCatalog(profile, { experience: profile.experience.map(e => ({ entryId: e.id, titleVariant: 0 })) }), verifiedEducation: [...new Map(Object.values(resumes).flatMap(r => educationCatalog(profile, r)).map(e => [e.id, e])).values()], originalEvidence: [...new Map(Object.values(resumes).flatMap(r => evidenceCatalog(profile, r)).map(b => [b.id, b])).values()].map(({ originalText, ...bullet }) => originalText === bullet.text ? bullet : { ...bullet, originalText }), resumeChoices: Object.values(resumes).map(({ id, title }) => ({ id, title })) });
+  if (!raw || (!Array.isArray(raw.requirements) && !Array.isArray(raw.important_keywords))) throw new Error('The model returned an incomplete job analysis. Try again.');
   const analysis = analyzeMatches(jd, raw, profile, resumes);
   const resume = resumes[analysis.recommended_resume];
   Object.assign(analysis.report, resumeDiagnostics(analysis.requirements, profile, resume, jobTitle));
-  const relevantSkills = profile.skills.filter(skill => analysis.important_keywords.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword))));
-  const relevantBullets = ['experience', 'projects'].flatMap(section => resume[section].map(sel => {
-    const entry = profile[section].find(x => x.id === sel.entryId);
-    return { section, entryId: entry.id, bulletIds: sel.bulletIds, relevantBullets: entry.bullets.map(({ id }) => {
-      const bullet = entry.bullets.find(x => x.id === id);
-      const variantIndex = resume.variants?.[`${section}:${entry.id}:${id}`];
-      return { id, currentText: variantIndex === undefined ? bullet.text : bullet.variants[variantIndex], variants: bullet.variants ?? [], skillIds: bullet.skillIds ?? [], competencies: inferredCompetencies(bullet.text) };
-    }) };
-  }));
-  const selectedResume = {
-    id: resume.id,
-    skillGroups: resume.skillGroups.map(group => ({ label: group.label, skills: group.skillIds.map(id => ({ id, label: profile.skills.find(skill => skill.id === id).label })) })),
-    projects: resume.projects.map(project => ({ entryId: project.entryId, name: profile.projects.find(entry => entry.id === project.entryId).nameVariants[project.nameVariant], technologies: project.techSkillIds.map(id => ({ id, label: profile.skills.find(skill => skill.id === id).label })) })),
-    entries: relevantBullets
-  };
-  const suggestions = fallbackSuggestions(analysis, profile, resume);
-  const editInput = { jobTitle, jobCategory: analysis.job_category, keywords: analysis.important_keywords, requirements: analysis.requirements, missingButVerified: relevantSkills.filter(skill => analysis.missing_but_verified.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), missingFromSkills: relevantSkills.filter(skill => analysis.missing_from_skills.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), unsupported: analysis.unsupported_keywords, selectedResume, jobTitleAlignment: analysis.report.job_title_alignment, mode: 'aggressive', safeCandidates: suggestions.map(({ edit, original, proposed, jdKeyword }) => ({ ...edit, original, proposed, jdKeyword })) };
+  const { editInput, suggestions } = prepareRefinement({ jobTitle, analysis, profile, resume });
   const warning = suggestions.length ? '' : 'No safe content change was found for this posting. You can still compile the best matching base resume.';
   const id = randomUUID();
   sessions.set(id, { created: Date.now(), profile, resume, changes: suggestions, analysis, raw, jd, editInput, jobTitle, company, pdf: null, reviews: new Map(), confirmations: [] });
@@ -95,20 +81,12 @@ async function analyze(req, res) {
 async function refine(req, res) {
   const body = await readJson(req);
   const session = sessionFor(body.analysisId);
-  try {
-    const rawEdits = await provider.suggestEdits(session.editInput);
-    const { reviews, confirmations } = await reviewRewrites(provider, rawEdits?.suggested_changes, session.analysis, session.profile, session.resume);
-    const suggestions = validateSuggestions(rawEdits?.suggested_changes, session.analysis, session.profile, session.resume, reviews);
-    // Advisory questions are visible but cannot be approved into resume content.
-    session.confirmations = [...confirmations, ...(Array.isArray(rawEdits?.confirmation_suggestions) ? rawEdits.confirmation_suggestions : []).filter(x => typeof x?.claim === 'string' && typeof x?.question === 'string').map(x => ({ claim: x.claim.slice(0, 500), note: x.question.slice(0, 500) + ' Update verified evidence before use.' }))];
-    for (const [key, review] of reviews) session.reviews.set(key, review);
-    if (!suggestions.length) return sendJson(res, 200, { confirmations: session.confirmations, changes: publicChanges(session.changes), warning: 'Qwen proposed no valid changes. Your existing suggestions are unchanged.', replaced: false });
-    session.changes = combineSuggestions(suggestions, session.changes, session.analysis);
-    session.pdf = null;
-    return sendJson(res, 200, { changes: publicChanges(session.changes), confirmations: session.confirmations, warning: '', replaced: true });
-  } catch {
-    return sendJson(res, 200, { changes: publicChanges(session.changes), warning: 'Qwen refinement did not finish. Your existing suggestions are unchanged.', replaced: false });
-  }
+  const result = await refineResume({ provider, input: session.editInput, analysis: session.analysis, profile: session.profile, resume: session.resume, existingChanges: session.changes });
+  session.confirmations = result.confirmations;
+  for (const [key, review] of result.reviews) session.reviews.set(key, review);
+  if (result.replaced) { session.changes = result.changes; session.pdf = null; }
+  if (result.diagnostics.code !== 'OK') console.warn('[refinement]', JSON.stringify(result.diagnostics));
+  sendJson(res, 200, { changes: publicChanges(session.changes), confirmations: session.confirmations, warning: result.warning, replaced: result.replaced, diagnostics: result.diagnostics });
 }
 
 async function compile(req, res) {
@@ -126,7 +104,7 @@ async function compile(req, res) {
   const after = analyzeResumeCoverage(session.jd, session.raw, session.profile, tailored);
   const beforeText = displayedText(session.profile, session.resume);
   const afterText = displayedText(session.profile, tailored);
-  const report = { mode: 'aggressive', confirmations_required: session.confirmations, ...after.report, ...resumeDiagnostics(after.requirements, session.profile, tailored, session.jobTitle), requirements: after.requirements, keywords_already_present: session.analysis.important_keywords.filter(k => containsTerm(beforeText, k)), keywords_added: session.analysis.important_keywords.filter(k => !containsTerm(beforeText, k) && containsTerm(afterText, k)), edits: session.changes.filter(c => approvedIds.includes(c.id)).map(({ title, original, proposed, reason, evidence, edit }) => ({ title, before: original, after: proposed, reason, evidence, operation: edit.operation, factual_review: edit.operation === 'bullet_rewrite' ? session.reviews.get(reviewKey(edit))?.reason : 'Verified content operation' })), parsing: pdf.validation };
+  const report = { mode: 'aggressive', baseline_weighted_coverage: session.analysis.report.weighted_coverage, keyword_visibility: technicalKeywordVisibility(after.requirements, session.profile, tailored), confirmations_required: session.confirmations, ...after.report, ...resumeDiagnostics(after.requirements, session.profile, tailored, session.jobTitle), requirements: after.requirements, keywords_already_present: session.analysis.important_keywords.filter(k => containsTerm(beforeText, k)), keywords_added: session.analysis.important_keywords.filter(k => !containsTerm(beforeText, k) && containsTerm(afterText, k)), edits: session.changes.filter(c => approvedIds.includes(c.id)).map(({ title, original, proposed, reason, evidence, edit }) => ({ title, before: original, after: proposed, reason, evidence, operation: edit.operation, factual_review: edit.operation === 'bullet_rewrite' ? session.reviews.get(reviewKey(edit))?.reason : 'Verified content operation' })), parsing: pdf.validation };
   await writeFile(pdf.reportPath, JSON.stringify(report, null, 2));
   session.pdf = pdf;
   session.noteInput = { jobTitle: session.jobTitle, company: session.company, jobDescription: session.jd, requirements: after.requirements, profile: session.profile, resume: tailored };
@@ -165,7 +143,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname === '/api/status') {
       const { profile, resumes } = await loadData();
-      return sendJson(res, 200, { configured: isConfigured(profile, resumes), provider: 'Kyma · Qwen 3.8 Flash', keyConfigured: Boolean(process.env.KYMA_API_KEY), resumes: Object.values(resumes).map(({ id, title }) => ({ id, title })) });
+      return sendJson(res, 200, { configured: isConfigured(profile, resumes), provider: provider.label, keyConfigured: Boolean(process.env.KYMA_API_KEY), resumes: Object.values(resumes).map(({ id, title }) => ({ id, title })) });
     }
     if (req.method === 'POST' && url.pathname === '/api/analyze') return await analyze(req, res);
     if (req.method === 'POST' && url.pathname === '/api/refine') return await refine(req, res);

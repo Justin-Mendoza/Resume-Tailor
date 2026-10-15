@@ -84,10 +84,11 @@ test('missing, ambiguous, failed and cosmetic reviews cannot approve rewrites', 
 });
 
 test('multiple bullets in an entry can be strengthened and reordered without a five-edit cap', async () => {
+  const rankedAnalysis = analyzeMatches(jd + ' Fault-tolerant system design', { ...rawAnalysis, requirements: [...rawAnalysis.requirements, row('Fault-tolerant system design', 'engineering_competency', 'high')] }, profile, resumes);
   const first = proposal();
   const second = proposal({ itemId: 'video_pipeline', sourceBulletIds: ['video_pipeline'], proposed: 'Engineered asynchronous processing of YouTube metrics through an event-driven Confluent Cloud Kafka pipeline into a Telegram notification service.' });
-  const { reviews } = await reviewRewrites(reviewer(), [first, second], analysis, profile, resume);
-  const changes = validateSuggestions([first, second, { ...first, operation: 'bullet_reorder', order: ['video_services', 'video_pipeline'] }], analysis, profile, resume, reviews);
+  const { reviews } = await reviewRewrites(reviewer(), [first, second], rankedAnalysis, profile, resume);
+  const changes = validateSuggestions([first, second, { ...first, operation: 'bullet_reorder', order: ['video_services', 'video_pipeline'] }], rankedAnalysis, profile, resume, reviews);
   assert.equal(changes.length, 3);
   const tailored = applyApproved(resume, changes, changes.map(c => c.id));
   assert.equal(tailored.projects.find(e => e.entryId === 'video').bulletIds[0], 'video_services');

@@ -12,10 +12,14 @@
     {"entryId":"intact_2025","titleVariant":0,"bulletIds":["if_cicd","if_onboard","if_security"]}
   ],
   "projects": [
-    {"entryId":"search","nameVariant":1,"techSkillIds":["python","fastapi","opensearch","postgresql","redis","cohere"],"bulletIds":["search_relevance","search_index","search_load"]},
-    {"entryId":"video","nameVariant":0,"techSkillIds":["python","kafka","confluent_cloud","rest_apis"],"bulletIds":["video_pipeline","video_services"]},
-    {"entryId":"vpc","nameVariant":0,"techSkillIds":["aws_ec2","vpc_tech","s3"],"bulletIds":["vpc_subnets","vpc_peering"]}
+    {"entryId":"jobwatch","nameVariant":0,"techSkillIds":["go","docker","github_actions","fly_io","rest_apis"],"bulletIds":["jw_polling","jw_reliability"]},
+    {"entryId":"search","nameVariant":1,"techSkillIds":["python","fastapi","opensearch","postgresql","redis","cohere"],"bulletIds":["search_relevance","search_index","search_postgres"]},
+    {"entryId":"video","nameVariant":0,"techSkillIds":["python","kafka","confluent_cloud","rest_apis"],"bulletIds":["video_pipeline","video_services"]}
   ],
-  "education": [{"entryId":"concordia"}],
-  "variants": {"experience:intact_2025:if_onboard":0}
+  "education": [
+    {"entryId":"concordia"}
+  ],
+  "variants": {"experience:intact_2025:if_onboard":0},
+  "supplementalEvidence": {"reviewedOn":"2026-10-15","projectId":"search","bulletIds":["search_postgres"],"revision":"4113296e1c4ab11d42eb016e8687547c6889dbc2"},
+  "sourceDocument": {"filename":"Justin_Mendoza_Infra.pdf","syncedOn":"2026-10-15","sha256":"d5f26bd0f93981fc9f244bb2ac82a87e986b274ded5a95ba0a9b12989866a90d"}
 }

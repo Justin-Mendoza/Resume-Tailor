@@ -62,7 +62,10 @@
       <section id="changes-section" class="panel hidden" aria-labelledby="changes-heading">
         <div class="section-head"><span class="step" aria-hidden="true">03</span><div><h2 id="changes-heading">Make it yours</h2><p>A few thoughtful edits. The final word is yours.</p></div></div>
         <div class="refine-row"><span class="refine-symbol" aria-hidden="true">✳</span><p id="refine-status" role="status" aria-live="polite">Taking one more look at the suggested changes…</p><button id="refine-button" class="secondary" type="button">Take another look ↻</button></div>
-        <div id="analysis-warning" class="notice hidden"></div><div id="changes-list"></div>
+        <div id="analysis-warning" class="notice hidden"></div>
+        <details id="confirmation-details" class="supporting-details confirmation-details hidden"><summary id="confirmation-summary">Optional facts to confirm</summary><p>These claims are excluded from your resume. Only add details you can verify.</p><ul id="confirmation-list"></ul></details>
+        <div class="review-actions"><button id="accept-all-button" class="secondary" type="button" disabled>Accept all changes</button></div>
+        <div id="changes-list"></div>
         <div class="compile-bar"><div class="review-progress"><span id="review-count" role="status" aria-live="polite">0 of 0 reviewed</span><progress id="review-progress" max="1" value="0" aria-label="Changes reviewed"></progress><small id="review-hint">Choose an option for each suggestion to continue.</small></div><button id="compile-button" type="button" disabled>Create my PDF <span aria-hidden="true">↗</span></button></div>
       </section>
 
@@ -71,6 +74,14 @@
         <div class="output-actions"><div class="file-label"><span aria-hidden="true">▤</span><span id="output-filename"></span></div><a id="download-link" class="download" href="#">Save my resume <span aria-hidden="true">↓</span></a></div>
         <iframe id="pdf-preview" title="Tailored resume PDF preview"></iframe>
         <p class="preview-hint">One last look: check the layout and wording before you send it.</p>
+        <section id="job-match-card" class="job-match hidden" aria-labelledby="job-match-heading">
+          <h3 id="job-match-heading">How this resume matches</h3>
+          <div class="job-match-top"><div><strong id="job-match-score" class="job-match-score"></strong><p>Weighted demonstrated requirement coverage</p></div><p id="job-match-change"></p></div>
+          <p class="job-match-note">Diagnostic only—not an ATS score or interview prediction. Critical requirements carry the most weight. Related experience and skill listings alone do not earn demonstrated coverage.</p>
+          <div class="job-match-metrics"><p id="job-match-critical"></p><p id="job-match-keywords"></p><p id="job-match-pdf"></p></div>
+          <p class="job-match-note">Keyword visibility measures searchable, verified terminology; it does not establish hands-on experience. Ordering and wording can improve the resume without changing coverage.</p>
+          <details class="supporting-details"><summary>Strengths and remaining gaps</summary><div id="job-match-details"></div></details>
+        </section>
         <div id="connection-note-card" class="connection-note hidden" aria-labelledby="connection-note-heading">
           <h3 id="connection-note-heading">A friendly follow-up</h3>
           <p>Send this LinkedIn connection note to a recruiter after you apply.</p>

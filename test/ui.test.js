@@ -182,8 +182,10 @@ test('unverified enhancements appear as confirmation questions outside approvabl
   });
   await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
   await tick();
-  assert.match(ui.get('analysis-warning').textContent, /Production deployment/);
-  assert.match(ui.get('analysis-warning').textContent, /excluded from resume/);
+  assert.match(ui.get('confirmation-list').children[0].textContent, /Production deployment/);
+  assert.match(ui.get('confirmation-summary').textContent, /excluded from resume/);
+  assert.equal(ui.get('confirmation-details').open, false);
+  assert.equal(ui.get('confirmation-details').classList.contains('hidden'), false);
   assert.equal(ui.get('changes-list').querySelectorAll('.decision input').length, 0);
 });
 
@@ -287,4 +289,107 @@ test('PDF is ready while the LLM note loads; personalization cannot overwrite a 
   await tick();
   assert.equal(ui.get('connection-note-card').classList.contains('hidden'), true);
   assert.notEqual(ui.get('connection-note-text').textContent, 'Stale message');
+});
+
+test('in-progress education evidence gets a degree status instead of no evidence', async () => {
+  const ui = fakeUi(async url => {
+    if (url === '/api/status') return response({ configured: true, keyConfigured: true, provider: 'Kyma' });
+    if (url === '/api/analyze') return response({ analysisId: 'degree-ui', resumeTitle: 'AI', analysis: { job_category: 'ai', important_keywords: [], matched_keywords: [], missing_but_verified: [], unsupported_keywords: [], requirements: [{ keyword: 'BS in Computer Science', priority: 'critical', source: 'Must have BS in Computer Science', status: 'related', evidence_basis: 'education_record', evidence: [{ text: 'Bachelor of Computer Science — Concordia University; Sept. 2023 – Dec. 2026', completion_status: 'in_progress', rationale: 'Degree is in progress.' }] }] }, changes: [], warning: '' });
+    if (url === '/api/refine') return response({ changes: [], replaced: false, warning: '' });
+    throw new Error(`Unexpected URL ${url}`);
+  });
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  await tick();
+  const row = ui.get('requirement-report').children[0];
+  assert.equal(row.children[0].children[2].textContent, 'Degree in progress');
+  assert.match(row.children[2].textContent, /Bachelor of Computer Science.*Concordia/);
+});
+
+test('confirmed employment duration and attendance confirmations show clear labels without technical gap counts', async () => {
+  const ui = fakeUi(async url => {
+    if (url === '/api/status') return response({ configured: true, keyConfigured: true, provider: 'Kyma' });
+    if (url === '/api/analyze') return response({ analysisId: 'employment-ui', resumeTitle: 'Infrastructure', analysis: { job_category: 'backend', important_keywords: [], matched_keywords: [], missing_but_verified: [], unsupported_keywords: [], report: { missing_requirements: [] }, requirements: [
+      { keyword: '6 months of software engineering experience', priority: 'critical', source: '6 months', status: 'equivalent', evidence_basis: 'employment_dates', experience_duration: { verified_months: 8, minimum_months: 6 }, evidence: [{ text: 'Two confirmed four-month internships.' }] },
+      { keyword: 'In-person attendance', priority: 'high', source: 'Three days per week', status: 'unsupported', requires_confirmation: true, evidence: [] }
+    ] }, changes: [], warning: '' });
+    if (url === '/api/refine') return response({ changes: [], replaced: false, warning: '' });
+    throw new Error(`Unexpected URL ${url}`);
+  });
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  await tick();
+  const rows = ui.get('requirement-report').children;
+  assert.equal(rows[0].children[0].children[2].textContent, '8 months verified');
+  assert.equal(rows[1].children[0].children[2].textContent, 'Confirm preference / eligibility');
+  assert.equal(ui.get('gap-count').textContent, 0);
+});
+
+test('final match card reports final coverage, honest deltas, gaps, keywords and unverified PDF checks', async () => {
+  for (const [before, after, expected, delta] of [[50, 75, '75%', '+25 percentage points'], [75, 75, '75%', '0 percentage points'], [75, 50, '50%', '-25 percentage points'], [null, null, 'N/A', '0/0 weighted points']]) {
+    const report = { baseline_weighted_coverage: { percent: before }, weighted_coverage: { percent: after, total_weight: after === null ? 0 : 20, demonstrated_weight: after === null ? 0 : after / 5 }, critical_demonstrated: ['Go'], critical_not_demonstrated: ['ROS 2'], keyword_visibility: { present: 1, total: 2, keywords: [{ keyword: 'Go', present: true }, { keyword: 'PostgreSQL', present: false }] }, keywords_already_present: ['Go'], keywords_added: [], semantically_matched: ['Go'], missing_requirements: ['ROS 2'], presentation_gaps: [], parsing: { passed: false } };
+    const ui = fakeUi(async url => {
+      if (url === '/api/status') return response({ configured: true, keyConfigured: true });
+      if (url === '/api/analyze') return response({ analysisId: 'match-ui', resumeTitle: 'Infrastructure', analysis: { important_keywords: [], matched_keywords: [], missing_but_verified: [], unsupported_keywords: [] }, changes: [] });
+      if (url === '/api/refine') return response({ changes: [], replaced: false });
+      if (url === '/api/compile') return response({ filename: 'resume.pdf', pages: 1, report });
+      throw Error(`Unexpected ${url}`);
+    });
+    await ui.get('job-form').listeners.get('submit')({ preventDefault() {} }); await tick();
+    await ui.get('compile-button').listeners.get('click')();
+    assert.equal(ui.get('job-match-card').classList.contains('hidden'), false);
+    assert.equal(ui.get('job-match-score').textContent, expected);
+    assert.ok(ui.get('job-match-change').textContent.includes(delta));
+    assert.equal(ui.get('job-match-critical').textContent, 'Critical requirements demonstrated: 1/2');
+    assert.equal(ui.get('job-match-keywords').textContent, 'Supported JD keywords visible: 1/2');
+    assert.match(ui.get('job-match-pdf').textContent, /Not verified/);
+    const detailText = ui.get('job-match-details').children.flatMap(e => [e.textContent, ...e.children.map(c => c.textContent)]).join(' ');
+    assert.match(detailText, /ROS 2/);
+    assert.match(detailText, /PostgreSQL/);
+    await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+    assert.equal(ui.get('job-match-card').classList.contains('hidden'), true);
+  }
+});
+
+test('accept all selects only reviewable changes, preserves individual overrides, and sends the correct decisions', async () => {
+  let finishRefinement, sent;
+  const changes = ['one', 'two'].map(id => ({ id, title: id, original: 'Original', proposed: 'Verified edit', reason: 'Relevant', jdKeyword: 'Go' }));
+  const ui = fakeUi(async (url, options) => {
+    if (url === '/api/status') return response({ configured: true, keyConfigured: true });
+    if (url === '/api/analyze') return response({ analysisId: 'bulk', resumeTitle: 'Infrastructure', analysis: { job_category: 'backend', important_keywords: [], matched_keywords: [], missing_but_verified: [], unsupported_keywords: [] }, changes });
+    if (url === '/api/refine') return new Promise(resolve => { finishRefinement = resolve; });
+    if (url === '/api/compile') { sent = JSON.parse(options.body); return response({ filename: 'resume.pdf', pages: 1 }); }
+    throw Error(`Unexpected ${url}`);
+  });
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} }); await tick();
+  assert.equal(ui.get('accept-all-button').disabled, true);
+  ui.get('accept-all-button').listeners.get('click')();
+  assert.equal(ui.get('review-count').textContent, '0 of 2 reviewed');
+  finishRefinement(response({ changes, replaced: false, confirmations: [{ claim: 'Unverified leadership', note: 'Confirm before use.' }] })); await tick();
+  assert.equal(ui.get('accept-all-button').disabled, false);
+  ui.get('accept-all-button').listeners.get('click')();
+  assert.equal(ui.get('review-count').textContent, '2 of 2 reviewed');
+  assert.equal(ui.get('compile-button').disabled, false);
+  const radios = ui.get('changes-list').querySelectorAll('.decision input');
+  assert.deepEqual(radios.map(r => r.checked), [true, false, true, false]);
+  assert.equal(ui.get('accept-all-button').disabled, true);
+  // A manual rejection after bulk acceptance remains authoritative.
+  radios[3].listeners.get('change')();
+  assert.equal(ui.get('accept-all-button').disabled, false);
+  await ui.get('compile-button').listeners.get('click')();
+  assert.deepEqual(sent.decisions, [{ id: 'one', approved: true }, { id: 'two', approved: false }]);
+  assert.equal(sent.decisions.some(d => d.id === 'Unverified leadership'), false);
+  ui.get('accept-all-button').listeners.get('click')();
+  assert.equal(ui.get('output-section').classList.contains('hidden'), true);
+});
+
+test('accept all stays disabled when there are no suggested changes', async () => {
+  const ui = fakeUi(async url => {
+    if (url === '/api/status') return response({ configured: true, keyConfigured: true });
+    if (url === '/api/analyze') return response({ analysisId: 'empty-bulk', resumeTitle: 'General', analysis: { job_category: 'backend', important_keywords: [], matched_keywords: [], missing_but_verified: [], unsupported_keywords: [] }, changes: [] });
+    if (url === '/api/refine') return response({ changes: [], replaced: false });
+    throw Error(`Unexpected ${url}`);
+  });
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} }); await tick();
+  assert.equal(ui.get('accept-all-button').disabled, true);
+  ui.get('accept-all-button').listeners.get('click')();
+  assert.equal(ui.get('review-count').textContent, '0 of 0 reviewed');
 });

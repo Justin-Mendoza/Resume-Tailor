@@ -18,7 +18,7 @@ test('all three transcribed resumes load and render from verified content', asyn
   }
 });
 
-test('updated General and AI resumes include the verified Resume Tailor project while Infrastructure keeps VPC', async () => {
+test('updated General and AI resumes include Resume Tailor, and all three use JobWatch', async () => {
   for (const id of ['general_swe', 'ai_search_ml']) {
     const resume = resumes[id];
     assert.ok(resume.projects.some(project => project.entryId === 'resume_tailor'));
@@ -28,7 +28,8 @@ test('updated General and AI resumes include the verified Resume Tailor project 
     assert.match(tex, /Qwen API, LaTeX, JSON Schema/);
     assert.match(tex, /JSON Schema validation/);
   }
-  assert.ok(resumes.backend_infra.projects.some(project => project.entryId === 'vpc'));
+  assert.ok(!resumes.backend_infra.projects.some(project => project.entryId === 'vpc'));
+  for (const resume of Object.values(resumes)) assert.ok(resume.projects.some(project => project.entryId === 'jobwatch'));
   assert.ok(!resumes.backend_infra.projects.some(project => project.entryId === 'resume_tailor'));
 });
 
@@ -109,20 +110,20 @@ test('ATS suggestions add a verified skill to Skills even when it appears only i
 });
 
 test('ATS suggestions can move an existing relevant project before unrelated projects', () => {
-  const analysis = analyzeMatches('Kafka is central to this software engineering role.', { recommended_resume: 'general_swe', job_category: 'software_engineering', important_keywords: ['Kafka'] }, profile, resumes);
+  const analysis = analyzeMatches('Go is central to this software engineering role.', { recommended_resume: 'general_swe', important_keywords: ['Go'] }, profile, resumes);
   const changes = fallbackSuggestions(analysis, profile, resumes.general_swe);
   const reorder = changes.find(change => change.edit.operation === 'project_reorder');
   assert.ok(reorder);
   const tailored = applyApproved(resumes.general_swe, [reorder], [reorder.id]);
-  assert.equal(tailored.projects[0].entryId, 'video');
+  assert.equal(tailored.projects[0].entryId, 'jobwatch');
   assert.equal(resumes.general_swe.projects[0].entryId, 'search');
 });
 
-test('project reorder validation rejects invented IDs and changes unrelated to the cited keyword', () => {
-  const analysis = analyzeMatches('Kafka is central to this software engineering role.', { recommended_resume: 'general_swe', job_category: 'software_engineering', important_keywords: ['Kafka'] }, profile, resumes);
-  const base = { operation: 'project_reorder', section: 'projects', targetId: 'projects', itemId: '', variantIndex: 0, reason: 'Put relevant work first', jdKeyword: 'Kafka', confidence: 0.8 };
+test('project reorder validation rejects invented IDs and irrelevant valid permutations', () => {
+  const analysis = analyzeMatches('Go is central to this software engineering role.', { recommended_resume: 'general_swe', important_keywords: ['Go'] }, profile, resumes);
+  const base = { operation: 'project_reorder', section: 'projects', targetId: 'projects', reason: 'Put relevant work first', jdKeyword: 'Go', confidence: 0.8 };
   assert.equal(buildChange({ ...base, order: ['invented_project', 'search', 'resume_tailor'] }, analysis, profile, resumes.general_swe), null);
-  assert.equal(buildChange({ ...base, order: ['resume_tailor', 'search', 'video'] }, analysis, profile, resumes.general_swe), null);
+  assert.equal(buildChange({ ...base, order: ['resume_tailor', 'search', 'jobwatch'] }, analysis, profile, resumes.general_swe), null);
 });
 
 test('Qwen reorder-only output cannot displace stronger verified edits', () => {

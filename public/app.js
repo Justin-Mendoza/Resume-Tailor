@@ -60,6 +60,20 @@ function renderChips(id, items, tone = '') {
   }
 }
 
+function renderConfirmations(items = []) {
+  const list = $('confirmation-list');
+  list.replaceChildren();
+  const valid = (Array.isArray(items) ? items : []).filter(x => typeof x?.claim === 'string' && typeof x?.note === 'string');
+  $('confirmation-details').classList.toggle('hidden', !valid.length);
+  $('confirmation-details').open = false;
+  $('confirmation-summary').textContent = `Optional facts to confirm (${valid.length}) — excluded from resume`;
+  for (const item of valid) {
+    const row = document.createElement('li');
+    row.textContent = `${item.claim}: ${item.note.replace(/ Update verified evidence before use\./g, '')}`;
+    list.append(row);
+  }
+}
+
 function renderRequirements(analysis) {
   const weighted = analysis.report?.weighted_coverage;
   $('coverage-note').textContent = `${weighted ? `Weighted demonstrated coverage: ${weighted.percent === null ? 'N/A' : weighted.percent + '%'} (${weighted.demonstrated_weight}/${weighted.total_weight} weighted points). ` : ''}Diagnostic only, not an ATS score. Related experience and skills-only declarations do not establish demonstrated experience.`;
@@ -75,6 +89,10 @@ function renderRequirements(analysis) {
     const priority = document.createElement('span'); priority.className = 'priority-badge'; priority.textContent = `${requirement.priority} priority`;
     const match = document.createElement('span'); match.className = 'match-badge'; match.dataset.match = requirement.status;
     match.textContent = ({ exact: 'Explicit match', equivalent: 'Equivalent', related: 'Related only', unsupported: 'No evidence' })[requirement.status] ?? requirement.status;
+    if (requirement.evidence_basis === 'education_record') match.textContent = requirement.status === 'equivalent' ? 'Education match' : requirement.evidence?.some(e => e.completion_status === 'in_progress') ? 'Degree in progress' : 'Education conditions to verify';
+    if (requirement.unverified_qualifiers?.includes('experience_duration')) match.textContent = 'Experience match; verify duration';
+    if (requirement.evidence_basis === 'employment_dates' && requirement.status === 'equivalent') match.textContent = `${requirement.experience_duration.verified_months} months verified`;
+    if (requirement.requires_confirmation) match.textContent = 'Confirm preference / eligibility';
     summary.append(keyword, priority, match);
     const source = document.createElement('p');
     source.className = 'evidence-source';
@@ -93,11 +111,28 @@ function updateReviewCount() {
   const total = current?.changes.length ?? 0;
   $('review-count').textContent = `${decisions.size} of ${total} reviewed`;
   $('compile-button').disabled = refining || compiling || decisions.size !== total;
+  $('accept-all-button').disabled = refining || compiling || total === 0 || current.changes.every(change => decisions.get(change.id) === true);
   $('review-progress').max = total || 1;
   $('review-progress').value = total ? decisions.size : 1;
   const approved = [...decisions.values()].filter(Boolean).length;
   $('review-hint').textContent = compiling ? 'Preparing your selected changes and checking the PDF…' : refining ? 'Finishing the suggestions. Review will open in a moment.' : decisions.size !== total ? 'Choose an option for each suggestion to continue.' : total ? `${approved} ${approved === 1 ? 'change' : 'changes'} selected. Your original facts stay intact.` : 'Your base resume is ready to preview.';
 }
+
+function invalidateGeneratedOutput() {
+  connectionNote = '';
+  noteGeneration++;
+  $('output-section').classList.add('hidden');
+  $('job-match-card').classList.add('hidden');
+  setWorkflow(2);
+}
+
+$('accept-all-button').addEventListener('click', () => {
+  if (!current || refining || compiling || !current.changes.length) return;
+  for (const change of current.changes) decisions.set(change.id, true);
+  for (const input of $('changes-list').querySelectorAll('.decision input')) input.checked = input.value === 'approve';
+  invalidateGeneratedOutput();
+  updateReviewCount();
+});
 
 function setReviewLocked(locked) {
   $('changes-section').setAttribute('aria-busy', String(locked));
@@ -108,6 +143,37 @@ function setReviewLocked(locked) {
 function showWarning(message) {
   $('analysis-warning').textContent = message || '';
   $('analysis-warning').classList.toggle('hidden', !message);
+}
+
+function renderJobMatch(report) {
+  const weighted = report?.weighted_coverage;
+  $('job-match-card').classList.toggle('hidden', !weighted);
+  if (!weighted) return;
+  const percent = Number.isFinite(weighted.percent) && weighted.total_weight > 0 ? weighted.percent : null;
+  $('job-match-score').textContent = percent === null ? 'N/A' : `${percent}%`;
+  const before = report.baseline_weighted_coverage?.percent;
+  const delta = percent !== null && Number.isFinite(before) ? Math.round((percent - before) * 10) / 10 : null;
+  $('job-match-change').textContent = delta === null ? `${weighted.demonstrated_weight}/${weighted.total_weight} weighted points` : `Before: ${before}% → Final: ${percent}% (${delta > 0 ? '+' : ''}${delta} percentage points)`;
+  const covered = report.critical_demonstrated ?? [];
+  const gaps = report.critical_not_demonstrated ?? [];
+  $('job-match-critical').textContent = `Critical requirements demonstrated: ${covered.length}/${covered.length + gaps.length}`;
+  const visibility = report.keyword_visibility;
+  $('job-match-keywords').textContent = visibility?.total ? `Supported JD keywords visible: ${visibility.present}/${visibility.total}` : 'Supported JD keywords visible: N/A';
+  $('job-match-pdf').textContent = `PDF text and reading-order checks: ${report.parsing?.passed === true ? 'Passed' : 'Not verified'}`;
+  const details = $('job-match-details'); details.replaceChildren();
+  const add = (title, items) => {
+    const heading = document.createElement('h4'); heading.textContent = title;
+    const list = document.createElement('ul');
+    for (const value of items.length ? items : ['None']) { const item = document.createElement('li'); item.textContent = value; list.append(item); }
+    details.append(heading, list);
+  };
+  add('Critical qualifications demonstrated', covered);
+  add('Critical qualifications still unproven', gaps);
+  add('Supported keywords visible', (visibility?.keywords ?? []).filter(k => k.present).map(k => k.keyword));
+  add('Verified keywords not yet visible', (visibility?.keywords ?? []).filter(k => !k.present).map(k => k.keyword));
+  add('Other requirements still unproven', (report.missing_requirements ?? []).filter(k => !gaps.includes(k)));
+  add('Presentation opportunities', (report.presentation_gaps ?? []).map(g => `${g.keyword}: ${g.suggestion}`));
+  add('Preferences or eligibility to confirm', (report.candidate_confirmations ?? []).map(c => c.keyword));
 }
 
 function renderChanges(changes) {
@@ -132,7 +198,7 @@ function renderChanges(changes) {
     for (const [value, label] of [['approve', 'Use this change'], ['reject', 'Keep original']]) {
       const wrap = document.createElement('label'); wrap.className = 'decision';
       const radio = document.createElement('input'); radio.type = 'radio'; radio.name = change.id; radio.value = value; radio.disabled = refining;
-      radio.addEventListener('change', () => { decisions.set(change.id, value === 'approve'); connectionNote = ''; noteGeneration++; $('output-section').classList.add('hidden'); setWorkflow(2); updateReviewCount(); });
+      radio.addEventListener('change', () => { decisions.set(change.id, value === 'approve'); invalidateGeneratedOutput(); updateReviewCount(); });
       const text = document.createElement('span'); text.textContent = label;
       wrap.append(radio, text); controls.append(wrap);
     }
@@ -165,8 +231,8 @@ async function runRefinement(generation) {
       $('output-section').classList.add('hidden');
       setWorkflow(2);
     }
-    const confirmations = (result.confirmations ?? []).map(x => `${x.claim}: ${x.note}`).join('\n');
-    showWarning([result.warning, confirmations && `Optional claims requiring confirmation (excluded from resume):\n${confirmations}`].filter(Boolean).join('\n'));
+    renderConfirmations(result.confirmations);
+    showWarning(result.warning);
     $('refine-status').textContent = result.warning ? 'Your verified suggestions are ready. You can take another look whenever you like.' : 'The review is complete. Choose the changes you’d like to keep.';
   } catch {
     if (generation !== analysisGeneration || current?.analysisId !== analysisId) return;
@@ -185,9 +251,11 @@ $('job-form').addEventListener('submit', async event => {
   event.preventDefault(); clearError();
   const generation = ++analysisGeneration;
   current = null;
+  renderConfirmations();
   connectionNote = '';
   noteGeneration++;
   $('connection-note-card').classList.add('hidden');
+  $('job-match-card').classList.add('hidden');
   decisions.clear();
   setWorkflow(0);
   $('starting-note').classList.remove('hidden');
@@ -285,6 +353,7 @@ $('compile-button').addEventListener('click', async () => {
     $('latex-link').href = result.latexUrl;
     $('report-link').href = result.reportUrl;
     const report = result.report;
+    renderJobMatch(report);
     const weighted = report?.weighted_coverage;
     $('export-report').textContent = report ? [
       weighted && `Weighted demonstrated coverage (diagnostic only, not an ATS score): ${weighted.percent === null ? 'N/A' : weighted.percent + '%'} (${weighted.demonstrated_weight}/${weighted.total_weight})`,
@@ -294,6 +363,7 @@ $('compile-button').addEventListener('click', async () => {
       `Already present: ${report.keywords_already_present.join(', ') || 'None'}`,
       `Added through approved edits: ${report.keywords_added.join(', ') || 'None'}`,
       `Equivalent matches: ${report.semantically_matched.join(', ') || 'None'}`,
+      `Preferences / eligibility to confirm: ${(report.candidate_confirmations ?? []).map(r => r.keyword).join(', ') || 'None'}`,
       `Unsupported requirements: ${(report.unsupported_requirements ?? report.missing_requirements).join(', ') || 'None'}`,
       `Remaining gaps: ${report.missing_requirements.join(', ') || 'None'}`,
       `Presentation gaps: ${(report.presentation_gaps ?? []).map(g => `${g.keyword}: ${g.suggestion}`).join('; ') || 'None'}`,

@@ -13,8 +13,11 @@
   ],
   "projects": [
     {"entryId":"search","nameVariant":0,"techSkillIds":["python","fastapi","opensearch","postgresql","redis","cohere"],"bulletIds":["search_relevance","search_index","search_load"]},
-    {"entryId":"resume_tailor","nameVariant":0,"techSkillIds":["qwen_api","latex","json_schema"],"bulletIds":["rt_pipeline","rt_validation"]},
-    {"entryId":"video","nameVariant":0,"techSkillIds":["python","kafka","confluent_cloud","rest_apis"],"bulletIds":["video_pipeline","video_services"]}
+    {"entryId":"jobwatch","nameVariant":0,"techSkillIds":["go","docker","github_actions","fly_io","rest_apis"],"bulletIds":["jw_polling","jw_reliability"]},
+    {"entryId":"resume_tailor","nameVariant":0,"techSkillIds":["qwen_api","latex","json_schema"],"bulletIds":["rt_pipeline","rt_validation"]}
   ],
-  "education": [{"entryId":"concordia"}]
+  "education": [
+    {"entryId":"concordia"}
+  ],
+  "sourceDocument": {"filename":"Justin_Mendoza.pdf","syncedOn":"2026-10-15","sha256":"8e165f323c70b1d2ae99f11e8b3ce7f13cb882f4bca6eb0f884f37f85e14d9c6"}
 }

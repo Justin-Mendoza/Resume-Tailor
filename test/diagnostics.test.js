@@ -136,3 +136,20 @@ test('an evidence-backed implicit competency earns demonstrated credit without a
   assert.deepEqual(report.exact_keywords_present, []);
   assert.ok(report.presentation_gaps.some(g => g.keyword === keyword && g.kind === 'exact_wording'));
 });
+
+test('final keyword visibility recognizes aliases, separates unsupported requirements, and does not equate JS with TypeScript', async () => {
+  const { technicalKeywordVisibility } = await import('../src/diagnostics.js');
+  const requirements = [
+    { keyword: 'Golang', source: 'Golang' }, { keyword: 'Postgres', source: 'Postgres' },
+    { keyword: 'Terraform', source: 'Terraform' }, { keyword: 'JavaScript', source: 'JavaScript' }
+  ];
+  const selected = { ...resumes.backend_infra, experience: [], projects: [], education: [], skillGroups: [{ label: 'Languages', skillIds: ['go'] }, { label: 'Backend & Data', skillIds: ['postgresql'] }] };
+  const visibility = technicalKeywordVisibility(requirements, profile, selected);
+  assert.equal(visibility.present, 2);
+  assert.equal(visibility.total, 3);
+  assert.ok(!visibility.keywords.some(k => k.keyword === 'Terraform'));
+  const tsOnly = structuredClone(profile);
+  tsOnly.experience[0].bullets = [{ id: 'ts', text: 'Built a TypeScript interface.', skillIds: ['typescript_js'] }];
+  const onlyTs = { ...selected, skillGroups: [], experience: [{ entryId: tsOnly.experience[0].id, titleVariant: 0, bulletIds: ['ts'] }] };
+  assert.equal(technicalKeywordVisibility([{ keyword: 'JS', source: 'JS' }], tsOnly, onlyTs).present, 0);
+});

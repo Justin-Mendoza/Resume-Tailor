@@ -6,7 +6,7 @@ import { loadData } from '../src/data.js';
 import { compileResume } from '../src/compiler.js';
 import { analyzeMatches } from '../src/matcher.js';
 import { reviewRewrites } from '../src/rewrite-validation.js';
-import { validateSuggestions, applyApproved } from '../src/editor.js';
+import { validateSuggestions, applyApproved, fallbackSuggestions } from '../src/editor.js';
 
 const available = command => spawnSync('which', [command]).status === 0;
 const hasCompiler = available('pdflatex') || available('latexmk') || await access('/Library/TeX/texbin/pdflatex').then(() => true, () => false);
@@ -21,7 +21,11 @@ test('all templates and an approved aggressive rewrite compile to one-page searc
   const changes = validateSuggestions([raw], analysis, profile, resumes.backend_infra, reviews);
   assert.equal(changes.length, 1);
   const tailored = applyApproved(resumes.backend_infra, changes, changes.map(c => c.id));
-  for (const resume of [...Object.values(resumes), tailored]) {
+  const orderingRows = ['Python/Django or Go or similar backend technologies', 'Relational databases and transaction-safe design'].map(keyword => ({ keyword, source: keyword, priority: 'critical', category: 'required_technical_skill' }));
+  const orderingAnalysis = analyzeMatches(orderingRows.map(r => r.source).join('\n'), { requirements: orderingRows }, profile, resumes);
+  const orderingChanges = fallbackSuggestions(orderingAnalysis, profile, resumes.backend_infra);
+  const ordered = applyApproved(resumes.backend_infra, orderingChanges, orderingChanges.map(c => c.id));
+  for (const resume of [...Object.values(resumes), tailored, ordered]) {
     const pdf = await compileResume(profile, resume, { company: 'Automated Test', jobTitle: `Compilation ${process.pid}`, keywords: ['Kafka', 'Go', 'Kubernetes'] });
     try {
       assert.equal(pdf.pages, 1);
@@ -29,6 +33,10 @@ test('all templates and an approved aggressive rewrite compile to one-page searc
       assert.deepEqual(pdf.validation.layoutWarnings, []);
       const text = await readFile(pdf.path.replace(/\.pdf$/, '.txt'), 'utf8');
       if (resume === tailored) assert.ok(text.replace(/\s+/g, ' ').includes(raw.proposed));
+      if (resume === ordered) {
+        assert.ok(text.indexOf('Implemented PostgreSQL transactions') < text.indexOf('Improved search relevance'));
+        assert.ok(text.indexOf('Backend & Data:') < text.indexOf('Infrastructure:'));
+      }
     } finally {
       for (const filename of [pdf.path, pdf.latexPath, pdf.path.replace(/\.pdf$/, '.txt')]) await rm(filename, { force: true });
     }
