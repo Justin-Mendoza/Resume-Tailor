@@ -1792,3 +1792,14 @@ iframe {
     transition: none!important;
   }
 }
+
+.connection-note {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.connection-note h3 { margin: 0 0 8px; }
+.connection-note-text { line-height: 1.6; overflow-wrap: anywhere; user-select: text; }
+.connection-note-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+#connection-note-count, #connection-note-status { font-size: 12px; }

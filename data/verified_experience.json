@@ -11,7 +11,7 @@
     {"id":"go","label":"Go","aliases":["Golang"],"categories":["Languages"]},
     {"id":"python","label":"Python","categories":["Languages"]},
     {"id":"java","label":"Java","categories":["Languages"]},
-    {"id":"typescript_js","label":"TypeScript/JavaScript","aliases":["TypeScript","JavaScript"],"categories":["Languages"]},
+    {"id":"typescript_js","label":"TypeScript/JavaScript","aliases":["TypeScript","JavaScript","JS"],"categories":["Languages"]},
     {"id":"cpp","label":"C++","categories":["Languages"]},
     {"id":"csharp","label":"C#","categories":["Languages"]},
     {"id":"sql","label":"SQL","categories":["Languages"]},

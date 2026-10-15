@@ -2,6 +2,8 @@ const $ = id => document.getElementById(id);
 let current = null;
 let refining = false;
 let compiling = false;
+let connectionNote = '';
+let noteGeneration = 0;
 let analysisGeneration = 0;
 const decisions = new Map();
 
@@ -59,7 +61,8 @@ function renderChips(id, items, tone = '') {
 }
 
 function renderRequirements(analysis) {
-  $('coverage-note').textContent = 'Coverage is a guide to relevance, not an ATS score. Related experience does not establish the same skill.';
+  const weighted = analysis.report?.weighted_coverage;
+  $('coverage-note').textContent = `${weighted ? `Weighted demonstrated coverage: ${weighted.percent === null ? 'N/A' : weighted.percent + '%'} (${weighted.demonstrated_weight}/${weighted.total_weight} weighted points). ` : ''}Diagnostic only, not an ATS score. Related experience and skills-only declarations do not establish demonstrated experience.`;
   $('exact-count').textContent = analysis.report?.explicitly_matched?.length ?? 0;
   $('equivalent-count').textContent = analysis.report?.semantically_matched?.length ?? 0;
   $('gap-count').textContent = analysis.report?.missing_requirements?.length ?? analysis.unsupported_keywords?.length ?? 0;
@@ -129,7 +132,7 @@ function renderChanges(changes) {
     for (const [value, label] of [['approve', 'Use this change'], ['reject', 'Keep original']]) {
       const wrap = document.createElement('label'); wrap.className = 'decision';
       const radio = document.createElement('input'); radio.type = 'radio'; radio.name = change.id; radio.value = value; radio.disabled = refining;
-      radio.addEventListener('change', () => { decisions.set(change.id, value === 'approve'); $('output-section').classList.add('hidden'); setWorkflow(2); updateReviewCount(); });
+      radio.addEventListener('change', () => { decisions.set(change.id, value === 'approve'); connectionNote = ''; noteGeneration++; $('output-section').classList.add('hidden'); setWorkflow(2); updateReviewCount(); });
       const text = document.createElement('span'); text.textContent = label;
       wrap.append(radio, text); controls.append(wrap);
     }
@@ -155,12 +158,15 @@ async function runRefinement(generation) {
     const result = await post('/api/refine', { analysisId });
     if (generation !== analysisGeneration || current?.analysisId !== analysisId) return;
     if (result.replaced) {
+      connectionNote = '';
+      noteGeneration++;
       current.changes = result.changes;
       renderChanges(result.changes);
       $('output-section').classList.add('hidden');
       setWorkflow(2);
     }
-    showWarning(result.warning);
+    const confirmations = (result.confirmations ?? []).map(x => `${x.claim}: ${x.note}`).join('\n');
+    showWarning([result.warning, confirmations && `Optional claims requiring confirmation (excluded from resume):\n${confirmations}`].filter(Boolean).join('\n'));
     $('refine-status').textContent = result.warning ? 'Your verified suggestions are ready. You can take another look whenever you like.' : 'The review is complete. Choose the changes you’d like to keep.';
   } catch {
     if (generation !== analysisGeneration || current?.analysisId !== analysisId) return;
@@ -179,6 +185,9 @@ $('job-form').addEventListener('submit', async event => {
   event.preventDefault(); clearError();
   const generation = ++analysisGeneration;
   current = null;
+  connectionNote = '';
+  noteGeneration++;
+  $('connection-note-card').classList.add('hidden');
   decisions.clear();
   setWorkflow(0);
   $('starting-note').classList.remove('hidden');
@@ -214,10 +223,49 @@ $('job-form').addEventListener('submit', async event => {
 
 $('refine-button').addEventListener('click', () => { clearError(); void runRefinement(analysisGeneration); });
 
+async function personalizeConnectionNote(analysisId, generation) {
+  const requestId = ++noteGeneration;
+  const active = () => generation === analysisGeneration && current?.analysisId === analysisId && requestId === noteGeneration;
+  const button = $('copy-connection-note');
+  button.disabled = true;
+  $('connection-note-status').textContent = 'Writing your personal follow-up…';
+  try {
+    const result = await post('/api/connection-note', { analysisId });
+    if (!active()) return;
+    if (typeof result.connectionNote === 'string' && result.connectionNote.trim() && result.connectionNote.length <= 300) {
+      connectionNote = result.connectionNote;
+      $('connection-note-text').textContent = connectionNote;
+      $('connection-note-count').textContent = `${connectionNote.length}/300 characters`;
+    }
+    $('connection-note-status').textContent = 'Ready to copy. Give it a quick read before sending.';
+  } catch {
+    if (active()) $('connection-note-status').textContent = 'Your connection note is ready to copy.';
+  } finally {
+    if (active()) button.disabled = false;
+  }
+}
+
+$('copy-connection-note').addEventListener('click', async () => {
+  const note = connectionNote;
+  if (!note || note.length > 300) return;
+  const generation = analysisGeneration;
+  const button = $('copy-connection-note');
+  button.disabled = true;
+  try {
+    await navigator.clipboard.writeText(note);
+    if (generation === analysisGeneration && note === connectionNote) $('connection-note-status').textContent = 'Copied! Ready to paste into LinkedIn.';
+  } catch {
+    if (generation === analysisGeneration && note === connectionNote) $('connection-note-status').textContent = 'Copy didn’t work. Select the note above and copy it manually.';
+  } finally {
+    button.disabled = false;
+  }
+});
+
 $('compile-button').addEventListener('click', async () => {
   if (!current || refining || compiling) return;
   const generation = analysisGeneration;
   const analysisId = current.analysisId;
+  noteGeneration++;
   compiling = true;
   clearError();
   $('refine-button').disabled = true;
@@ -226,14 +274,38 @@ $('compile-button').addEventListener('click', async () => {
   try {
     const result = await post('/api/compile', { analysisId: current.analysisId, decisions: current.changes.map(x => ({ id: x.id, approved: decisions.get(x.id) })) });
     if (generation !== analysisGeneration || current?.analysisId !== analysisId) return;
+    connectionNote = typeof result.connectionNote === 'string' && result.connectionNote.length <= 300 ? result.connectionNote : '';
+    $('connection-note-card').classList.toggle('hidden', !connectionNote);
+    $('connection-note-text').textContent = connectionNote;
+    $('connection-note-count').textContent = `${connectionNote.length}/300 characters`;
+    $('connection-note-status').textContent = '';
     $('output-filename').textContent = result.filename;
     $('output-note').textContent = result.pages === null ? 'Your PDF is ready. Check the page count in the preview.' : `${result.pages} page · Ready for one last look.`;
     $('download-link').href = result.downloadUrl;
     $('latex-link').href = result.latexUrl;
     $('report-link').href = result.reportUrl;
-    $('export-report').textContent = result.report ? `Already present: ${result.report.keywords_already_present.join(', ') || 'None'}\nAdded through approved edits: ${result.report.keywords_added.join(', ') || 'None'}\nEquivalent matches: ${result.report.semantically_matched.join(', ') || 'None'}\nRemaining gaps: ${result.report.missing_requirements.join(', ') || 'None'}\nPDF text validation: ${result.report.parsing.passed ? 'Passed' : 'Failed'}\n${result.report.parsing.visualReview}` : '';
+    const report = result.report;
+    const weighted = report?.weighted_coverage;
+    $('export-report').textContent = report ? [
+      weighted && `Weighted demonstrated coverage (diagnostic only, not an ATS score): ${weighted.percent === null ? 'N/A' : weighted.percent + '%'} (${weighted.demonstrated_weight}/${weighted.total_weight})`,
+      `Critical requirements demonstrated: ${(report.critical_demonstrated ?? []).join(', ') || 'None'}`,
+      `Critical requirements without demonstration: ${(report.critical_not_demonstrated ?? []).join(', ') || 'None'}`,
+      `Exact JD keywords present: ${(report.exact_keywords_present ?? []).join(', ') || 'None'}`,
+      `Already present: ${report.keywords_already_present.join(', ') || 'None'}`,
+      `Added through approved edits: ${report.keywords_added.join(', ') || 'None'}`,
+      `Equivalent matches: ${report.semantically_matched.join(', ') || 'None'}`,
+      `Unsupported requirements: ${(report.unsupported_requirements ?? report.missing_requirements).join(', ') || 'None'}`,
+      `Remaining gaps: ${report.missing_requirements.join(', ') || 'None'}`,
+      `Presentation gaps: ${(report.presentation_gaps ?? []).map(g => `${g.keyword}: ${g.suggestion}`).join('; ') || 'None'}`,
+      `Repetition review: ${(report.keyword_saturation?.warnings ?? []).map(w => `${w.keyword} in ${w.location}: ${w.reason}`).join('; ') || 'No local repetition flagged'}`,
+      report.job_title_alignment && `Target title: ${report.job_title_alignment.target_title}. Terminology to review: ${report.job_title_alignment.remaining_gaps.join(', ') || 'None'}. Previous titles are preserved.`,
+      `PDF text validation: ${report.parsing.passed ? 'Passed' : 'Failed'}`,
+      report.parsing.visualReview
+    ].filter(Boolean).join('\n') : '';
     $('pdf-preview').src = `${result.previewUrl}?t=${Date.now()}`;
     $('output-section').classList.remove('hidden');
+    $('copy-connection-note').disabled = false;
+    if (result.connectionNotePending) void personalizeConnectionNote(analysisId, generation);
     setWorkflow(3);
     $('output-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
     $('output-heading').focus?.({ preventScroll: true });

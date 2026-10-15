@@ -45,7 +45,7 @@ function bulletList(profile, section, entry, bulletIds, resume) {
   for (const id of bulletIds) {
     const bullet = entry.bullets.find(x => x.id === id);
     const variant = resume.variants?.[`${section}:${entry.id}:${id}`];
-    const text = variant === undefined ? bullet.text : bullet.variants[variant];
+    const text = resume.rewrites?.[`${section}:${entry.id}:${id}`] ?? (variant === undefined ? bullet.text : bullet.variants[variant]);
     out += `\\resumeItem{${formatText(text, bullet.emphasis)}}\n`;
   }
   return out + '\\resumeItemListEnd\n';

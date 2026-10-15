@@ -76,7 +76,8 @@ export async function compileResume(profile, resume, { company, jobTitle, keywor
     const pdfPath = path.join(buildDir, 'resume.pdf');
     await access(pdfPath).catch(() => { throw new Error(`LaTeX exited successfully but no PDF was produced:\n${result.output.slice(-4000)}`); });
     const pages = await pageCount(pdfPath);
-    if (pages !== null && pages !== 1) throw new Error(`The tailored resume is ${pages} pages. Reject a lengthening edit or adjust the local template before saving.`);
+    if (pages === null) throw new Error('Cannot verify one-page output. Install pdfinfo or enable PDFKit before export.');
+    if (pages !== 1) throw new Error(`The tailored resume is ${pages} pages. Reject lengthening edits or shorten less relevant content before saving.`);
     const extracted = await extractPdfText(pdfPath);
     const validation = { ...validatePdfText(extracted.text, profile, resume, keywords), engine: extracted.engine, pages, layoutWarnings: result.output.split('\n').filter(line => /Overfull \\[hv]box/.test(line)) };
     if (!validation.passed) throw new Error(`PDF parsing validation failed: ${validation.errors.join('; ')}`);

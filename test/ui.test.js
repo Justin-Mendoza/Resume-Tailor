@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 const source = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
 
-function fakeUi(fetchImpl) {
+function fakeUi(fetchImpl, clipboard = { writeText: async () => {} }) {
   const elements = new Map();
   class Element {
     constructor(tagName = 'div') {
@@ -46,7 +46,7 @@ function fakeUi(fetchImpl) {
     },
     createElement: tagName => new Element(tagName)
   };
-  vm.runInNewContext(source, { document, fetch: fetchImpl });
+  vm.runInNewContext(source, { document, fetch: fetchImpl, navigator: { clipboard } });
   return { get: id => document.getElementById(id) };
 }
 
@@ -171,4 +171,120 @@ test('compilation locks review choices and an old result cannot replace a new ap
   assert.equal(ui.get('output-section').classList.contains('hidden'), true);
   assert.equal(ui.get('nav-output').dataset.state, 'locked');
   assert.ok(ui.get('changes-list').querySelectorAll('.decision input').every(input => !input.disabled));
+});
+
+test('unverified enhancements appear as confirmation questions outside approvable edits', async () => {
+  const ui = fakeUi(async url => {
+    if (url === '/api/status') return response({ configured: true, keyConfigured: true, provider: 'Qwen' });
+    if (url === '/api/analyze') return response({ analysisId: 'confirmation-test', resumeTitle: 'General', analysis: { job_category: 'backend', important_keywords: [], matched_keywords: [], missing_but_verified: [], unsupported_keywords: [] }, changes: [], warning: '' });
+    if (url === '/api/refine') return response({ changes: [], replaced: false, warning: '', confirmations: [{ claim: 'Production deployment', note: 'Was this deployed to production? Update verified evidence before use.' }] });
+    throw new Error(`Unexpected URL ${url}`);
+  });
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  await tick();
+  assert.match(ui.get('analysis-warning').textContent, /Production deployment/);
+  assert.match(ui.get('analysis-warning').textContent, /excluded from resume/);
+  assert.equal(ui.get('changes-list').querySelectorAll('.decision input').length, 0);
+});
+
+test('final report shows weighted diagnostics, exact keywords, presentation gaps and title review', async () => {
+  const report = {
+    weighted_coverage: { percent: 75, demonstrated_weight: 9, total_weight: 12 },
+    critical_demonstrated: ['Go'], critical_not_demonstrated: ['Rust'], exact_keywords_present: ['Go'],
+    keywords_already_present: ['Go'], keywords_added: ['Kafka'], semantically_matched: ['Postgres'], missing_requirements: ['Rust'], unsupported_requirements: ['Rust'],
+    presentation_gaps: [{ keyword: 'Postgres', suggestion: 'Prefer exact JD wording.' }],
+    keyword_saturation: { warnings: [{ keyword: 'Go', location: 'projects:example:bullet', reason: 'Review local repetition.' }] },
+    job_title_alignment: { target_title: 'Backend Engineer', remaining_gaps: ['backend'] },
+    parsing: { passed: true, visualReview: 'Preview required.' }
+  };
+  const ui = fakeUi(async url => {
+    if (url === '/api/status') return response({ configured: true, keyConfigured: true, provider: 'Kyma' });
+    if (url === '/api/analyze') return response({ analysisId: 'diagnostic-ui', resumeTitle: 'General', analysis: { job_category: 'backend', important_keywords: [], matched_keywords: [], missing_but_verified: [], unsupported_keywords: [], report }, changes: [], warning: '' });
+    if (url === '/api/refine') return response({ changes: [], replaced: false, warning: '' });
+    if (url === '/api/compile') return response({ filename: 'resume.pdf', pages: 1, previewUrl: '/pdf', downloadUrl: '/download', latexUrl: '/latex', reportUrl: '/report', report });
+    throw new Error(`Unexpected URL ${url}`);
+  });
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  await tick();
+  assert.match(ui.get('coverage-note').textContent, /75%.*9\/12/);
+  await ui.get('compile-button').listeners.get('click')();
+  const text = ui.get('export-report').textContent;
+  assert.match(text, /diagnostic only, not an ATS score/);
+  assert.match(text, /Critical requirements demonstrated: Go/);
+  assert.match(text, /Exact JD keywords present: Go/);
+  assert.match(text, /Unsupported requirements: Rust/);
+  assert.match(text, /Postgres: Prefer exact JD wording/);
+  assert.match(text, /Repetition review: Go/);
+  assert.match(text, /Target title: Backend Engineer/);
+});
+
+test('generated connection note shows after PDF generation and copies exactly with friendly feedback', async () => {
+  const note = "Hi! I just applied for the Backend Engineer role at Example. My experience with Go aligns with the work you're hiring for. I'd love to connect!";
+  const copied = [];
+  const ui = fakeUi(async url => {
+    if (url === '/api/status') return response({ configured: true, keyConfigured: true, provider: 'Kyma' });
+    if (url === '/api/analyze') return response({ analysisId: 'note-ui', resumeTitle: 'General', analysis: { job_category: 'backend', important_keywords: [], matched_keywords: [], missing_but_verified: [], unsupported_keywords: [] }, changes: [], warning: '' });
+    if (url === '/api/refine') return response({ changes: [], replaced: false, warning: '' });
+    if (url === '/api/compile') return response({ filename: 'resume.pdf', pages: 1, previewUrl: '/pdf', downloadUrl: '/download', connectionNote: note });
+    throw new Error(`Unexpected URL ${url}`);
+  }, { writeText: async text => { copied.push(text); } });
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  await tick();
+  assert.ok(ui.get('connection-note-card').classList.contains('hidden'));
+  await ui.get('compile-button').listeners.get('click')();
+  assert.equal(ui.get('connection-note-text').textContent, note);
+  assert.equal(ui.get('connection-note-count').textContent, `${note.length}/300 characters`);
+  assert.equal(ui.get('connection-note-card').classList.contains('hidden'), false);
+  await ui.get('copy-connection-note').listeners.get('click')();
+  assert.deepEqual(copied, [note]);
+  assert.match(ui.get('connection-note-status').textContent, /Copied/);
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  await ui.get('copy-connection-note').listeners.get('click')();
+  assert.equal(copied.length, 1);
+});
+
+test('clipboard failure gives manual-copy guidance without disrupting generated resume', async () => {
+  const ui = fakeUi(async url => {
+    if (url === '/api/status') return response({ configured: true, keyConfigured: true, provider: 'Kyma' });
+    if (url === '/api/analyze') return response({ analysisId: 'copy-failure', resumeTitle: 'General', analysis: { job_category: 'backend', important_keywords: [], matched_keywords: [], missing_but_verified: [], unsupported_keywords: [] }, changes: [], warning: '' });
+    if (url === '/api/refine') return response({ changes: [], replaced: false, warning: '' });
+    if (url === '/api/compile') return response({ filename: 'resume.pdf', pages: 1, connectionNote: "Hi! I applied for the role. I'd love to connect!" });
+    throw new Error(`Unexpected URL ${url}`);
+  }, { writeText: async () => { throw Error('Clipboard permission denied'); } });
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  await tick();
+  await ui.get('compile-button').listeners.get('click')();
+  await ui.get('copy-connection-note').listeners.get('click')();
+  assert.match(ui.get('connection-note-status').textContent, /copy it manually/);
+  assert.equal(ui.get('copy-connection-note').disabled, false);
+  assert.equal(ui.get('output-section').classList.contains('hidden'), false);
+});
+
+test('PDF is ready while the LLM note loads; personalization cannot overwrite a newer application', async () => {
+  let finishNote;
+  const fallback = "Hi! I applied. I'd love to connect!";
+  const personalized = "Hi! I applied for Backend Engineer at Example. I've built Go ingestion services and would love to connect!";
+  const ui = fakeUi(async url => {
+    if (url === '/api/status') return response({ configured: true, keyConfigured: true, provider: 'Kyma' });
+    if (url === '/api/analyze') return response({ analysisId: 'async-note', resumeTitle: 'General', analysis: { job_category: 'backend', important_keywords: [], matched_keywords: [], missing_but_verified: [], unsupported_keywords: [] }, changes: [], warning: '' });
+    if (url === '/api/refine') return response({ changes: [], replaced: false, warning: '' });
+    if (url === '/api/compile') return response({ filename: 'resume.pdf', pages: 1, connectionNote: fallback, connectionNotePending: true });
+    if (url === '/api/connection-note') return new Promise(resolve => { finishNote = resolve; });
+    throw new Error(`Unexpected URL ${url}`);
+  });
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  await tick();
+  await ui.get('compile-button').listeners.get('click')();
+  assert.equal(ui.get('output-section').classList.contains('hidden'), false);
+  assert.equal(ui.get('copy-connection-note').disabled, true);
+  finishNote(response({ connectionNote: personalized }));
+  await tick();
+  assert.equal(ui.get('connection-note-text').textContent, personalized);
+  assert.equal(ui.get('copy-connection-note').disabled, false);
+  await ui.get('compile-button').listeners.get('click')();
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  finishNote(response({ connectionNote: 'Stale message' }));
+  await tick();
+  assert.equal(ui.get('connection-note-card').classList.contains('hidden'), true);
+  assert.notEqual(ui.get('connection-note-text').textContent, 'Stale message');
 });

@@ -77,7 +77,7 @@ test('renderer uses the structured Overleaf layout and only bolds verified empha
   assert.ok(tex.includes('\\resumeSkill{Backend \\& Data}'));
 });
 
-test('new bullet wording from the model is never accepted', () => {
+test('fabricated variant indices are never accepted', () => {
   const jd = 'We need Kubernetes and Go for this infrastructure role.';
   const analysis = analyzeMatches(jd, { recommended_resume: 'backend_infra', job_category: 'infrastructure', important_keywords: ['Kubernetes', 'Go'] }, profile, resumes);
   const proposed = { operation: 'bullet_variant', section: 'experience', targetId: 'datadog_2026', itemId: 'dd_ingest', order: [], variantIndex: 999, reason: 'Use fabricated wording', jdKeyword: 'Kubernetes', confidence: 0.9 };
@@ -88,7 +88,7 @@ test('local suggestions provide several verified, relevant edits without Qwen re
   const jd = 'We need Python, PostgreSQL, Kubernetes, Go, AWS, Kafka, and REST APIs for backend infrastructure.';
   const analysis = analyzeMatches(jd, { recommended_resume: 'general_swe', job_category: 'backend', important_keywords: ['Python', 'PostgreSQL', 'Kubernetes', 'Go', 'AWS', 'Kafka', 'REST APIs'] }, profile, resumes);
   const changes = fallbackSuggestions(analysis, profile, resumes[analysis.recommended_resume]);
-  assert.ok(changes.length >= 2 && changes.length <= 5);
+  assert.ok(changes.length >= 2);
   assert.ok(changes.some(change => change.edit.operation === 'bullet_variant'));
   assert.ok(changes.every(change => analysis.important_keywords.includes(change.jdKeyword)));
   assert.ok(changes.every(change => buildChange({ ...change.edit, reason: change.reason, jdKeyword: change.jdKeyword, confidence: change.confidence }, analysis, profile, resumes[analysis.recommended_resume])));
@@ -136,7 +136,6 @@ test('Qwen reorder-only output cannot displace stronger verified edits', () => {
   const combined = combineSuggestions(reorder, local);
   assert.ok(combined.some(change => change.edit.operation === 'bullet_variant'));
   assert.ok(combined.some(change => change.edit.operation === 'skill_reorder'));
-  assert.ok(combined.length <= 5);
   assert.equal(new Set(combined.map(change => change.conflictKey)).size, combined.length);
   assert.deepEqual(combined.map(change => change.id), combined.map((_, index) => `change_${index + 1}`));
 });

@@ -71,6 +71,13 @@
         <div class="output-actions"><div class="file-label"><span aria-hidden="true">▤</span><span id="output-filename"></span></div><a id="download-link" class="download" href="#">Save my resume <span aria-hidden="true">↓</span></a></div>
         <iframe id="pdf-preview" title="Tailored resume PDF preview"></iframe>
         <p class="preview-hint">One last look: check the layout and wording before you send it.</p>
+        <div id="connection-note-card" class="connection-note hidden" aria-labelledby="connection-note-heading">
+          <h3 id="connection-note-heading">A friendly follow-up</h3>
+          <p>Send this LinkedIn connection note to a recruiter after you apply.</p>
+          <p id="connection-note-text" class="connection-note-text"></p>
+          <div class="connection-note-actions"><span id="connection-note-count"></span><button id="copy-connection-note" class="secondary" type="button">Copy connection note</button></div>
+          <p id="connection-note-status" role="status" aria-live="polite"></p>
+        </div>
         <details class="supporting-details export-details"><summary>Behind the final draft <span aria-hidden="true">+</span></summary><pre id="export-report"></pre><div class="artifact-links"><a id="latex-link" href="#">LaTeX source <span aria-hidden="true">↗</span></a><a id="report-link" href="#">Coverage report <span aria-hidden="true">↗</span></a></div></details>
       </section>
       <div id="error" class="error hidden" role="alert"></div>
