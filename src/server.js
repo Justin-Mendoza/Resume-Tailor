@@ -1,10 +1,10 @@
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { loadData, isConfigured } from './data.js';
-import { analyzeMatches, containsTerm, normalize } from './matcher.js';
+import { analyzeMatches, analyzeResumeCoverage, containsTerm, normalize, evidenceCatalog, displayedText } from './matcher.js';
 import { validateSuggestions, fallbackSuggestions, combineSuggestions, applyApproved } from './editor.js';
 import { createProvider } from './providers/index.js';
 import { compileResume } from './compiler.js';
@@ -50,7 +50,7 @@ function sessionFor(id) {
 }
 
 function publicChanges(changes) {
-  return changes.map(({ id, title, original, proposed, reason, jdKeyword, confidence }) => ({ id, title, original, proposed, reason, jdKeyword, confidence }));
+  return changes.map(({ id, title, original, proposed, reason, jdKeyword, confidence, evidence }) => ({ id, title, original, proposed, reason, jdKeyword, confidence, evidence }));
 }
 
 async function analyze(req, res) {
@@ -61,8 +61,8 @@ async function analyze(req, res) {
   const company = cleanText(body.company, 'Company', 120);
   const jd = cleanText(body.jobDescription, 'Job description', 50_000);
   if (jd.length < 80) throw new Error('Paste a fuller job description (at least 80 characters).');
-  const raw = await provider.analyzeJD({ jobTitle, company, jobDescription: jd, resumeChoices: Object.values(resumes).map(({ id, title }) => ({ id, title })) });
-  if (!raw || !Array.isArray(raw.important_keywords)) throw new Error('Qwen returned an incomplete job analysis. Try again.');
+  const raw = await provider.analyzeJD({ jobTitle, company, jobDescription: jd, originalEvidence: [...new Map(Object.values(resumes).flatMap(r => evidenceCatalog(profile, r)).map(b => [b.id, b])).values()], resumeChoices: Object.values(resumes).map(({ id, title }) => ({ id, title })) });
+  if (!raw || (!Array.isArray(raw.requirements) && !Array.isArray(raw.important_keywords))) throw new Error('Qwen returned an incomplete job analysis. Try again.');
   const analysis = analyzeMatches(jd, raw, profile, resumes);
   const resume = resumes[analysis.recommended_resume];
   const relevantSkills = profile.skills.filter(skill => analysis.important_keywords.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword))));
@@ -81,10 +81,10 @@ async function analyze(req, res) {
     entries: relevantBullets
   };
   const suggestions = fallbackSuggestions(analysis, profile, resume);
-  const editInput = { jobTitle, jobCategory: analysis.job_category, keywords: analysis.important_keywords, missingButVerified: relevantSkills.filter(skill => analysis.missing_but_verified.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), missingFromSkills: relevantSkills.filter(skill => analysis.missing_from_skills.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), unsupported: analysis.unsupported_keywords, selectedResume, safeCandidates: suggestions.map(({ edit, original, proposed, jdKeyword }) => ({ ...edit, original, proposed, jdKeyword })) };
+  const editInput = { jobTitle, jobCategory: analysis.job_category, keywords: analysis.important_keywords, requirements: analysis.requirements, missingButVerified: relevantSkills.filter(skill => analysis.missing_but_verified.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), missingFromSkills: relevantSkills.filter(skill => analysis.missing_from_skills.some(keyword => [skill.label, ...(skill.aliases ?? [])].some(alias => normalize(alias) === normalize(keyword)))).map(({ id, label, categories }) => ({ id, label, categories })), unsupported: analysis.unsupported_keywords, selectedResume, safeCandidates: suggestions.map(({ edit, original, proposed, jdKeyword }) => ({ ...edit, original, proposed, jdKeyword })) };
   const warning = suggestions.length ? '' : 'No safe content change was found for this posting. You can still compile the best matching base resume.';
   const id = randomUUID();
-  sessions.set(id, { created: Date.now(), profile, resume, changes: suggestions, analysis, editInput, jobTitle, company, pdf: null });
+  sessions.set(id, { created: Date.now(), profile, resume, changes: suggestions, analysis, raw, jd, editInput, jobTitle, company, pdf: null });
   sendJson(res, 200, { analysisId: id, analysis, resumeTitle: resume.title, changes: publicChanges(suggestions), warning });
 }
 
@@ -95,7 +95,7 @@ async function refine(req, res) {
     const rawEdits = await provider.suggestEdits(session.editInput);
     const suggestions = validateSuggestions(rawEdits?.suggested_changes, session.analysis, session.profile, session.resume);
     if (!suggestions.length) return sendJson(res, 200, { changes: publicChanges(session.changes), warning: 'Qwen proposed no valid changes. Your existing suggestions are unchanged.', replaced: false });
-    session.changes = combineSuggestions(suggestions, session.changes);
+    session.changes = combineSuggestions(suggestions, session.changes, session.analysis);
     session.pdf = null;
     return sendJson(res, 200, { changes: publicChanges(session.changes), warning: '', replaced: true });
   } catch {
@@ -109,10 +109,19 @@ async function compile(req, res) {
   const decisions = body.decisions;
   if (!Array.isArray(decisions) || decisions.length !== session.changes.length || decisions.some(x => typeof x?.approved !== 'boolean') || !session.changes.every(c => decisions.some(d => d.id === c.id))) throw new Error('Approve or reject every suggested change before compiling.');
   const approvedIds = decisions.filter(x => x.approved).map(x => x.id);
+  for (const change of session.changes.filter(c => approvedIds.includes(c.id))) {
+    const checked = validateSuggestions([{ ...change.edit, original: change.original, reason: change.reason, jdKeyword: change.jdKeyword, confidence: change.confidence }], session.analysis, session.profile, session.resume);
+    if (!checked.length || checked[0].proposed !== change.proposed) throw new Error('Invalid or stale resume change');
+  }
   const tailored = applyApproved(session.resume, session.changes, approvedIds);
-  const pdf = await compileResume(session.profile, tailored, { jobTitle: session.jobTitle, company: session.company });
+  const pdf = await compileResume(session.profile, tailored, { jobTitle: session.jobTitle, company: session.company, keywords: session.analysis.important_keywords.filter(k => containsTerm(displayedText(session.profile, tailored), k)) });
+  const after = analyzeResumeCoverage(session.jd, session.raw, session.profile, tailored);
+  const beforeText = displayedText(session.profile, session.resume);
+  const afterText = displayedText(session.profile, tailored);
+  const report = { ...after.report, requirements: after.requirements, keywords_already_present: session.analysis.important_keywords.filter(k => containsTerm(beforeText, k)), keywords_added: session.analysis.important_keywords.filter(k => !containsTerm(beforeText, k) && containsTerm(afterText, k)), edits: session.changes.filter(c => approvedIds.includes(c.id)).map(({ title, original, proposed, reason }) => ({ title, before: original, after: proposed, reason })), parsing: pdf.validation };
+  await writeFile(pdf.reportPath, JSON.stringify(report, null, 2));
   session.pdf = pdf;
-  sendJson(res, 200, { filename: pdf.filename, pages: pdf.pages, previewUrl: `/api/pdf/${body.analysisId}`, downloadUrl: `/api/download/${body.analysisId}` });
+  sendJson(res, 200, { filename: pdf.filename, pages: pdf.pages, report, latexUrl: `/api/latex/${body.analysisId}`, reportUrl: `/api/report/${body.analysisId}`, previewUrl: `/api/pdf/${body.analysisId}`, downloadUrl: `/api/download/${body.analysisId}` });
 }
 
 async function servePdf(res, id, download) {
@@ -141,6 +150,15 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/analyze') return await analyze(req, res);
     if (req.method === 'POST' && url.pathname === '/api/refine') return await refine(req, res);
     if (req.method === 'POST' && url.pathname === '/api/compile') return await compile(req, res);
+    const artifactRoute = url.pathname.match(/^\/api\/(latex|report)\/([0-9a-f-]{36})$/);
+    if (req.method === 'GET' && artifactRoute) {
+      const pdf = sessionFor(artifactRoute[2]).pdf;
+      if (!pdf) throw new Error('Compile the resume first.');
+      const isTex = artifactRoute[1] === 'latex';
+      const data = await readFile(isTex ? pdf.latexPath : pdf.reportPath);
+      res.writeHead(200, { 'Content-Type': isTex ? 'application/x-tex' : 'application/json', 'Content-Disposition': `attachment; filename="${pdf.filename.replace(/\.pdf$/, isTex ? '.tex' : '.report.json')}"`, 'Cache-Control': 'no-store' });
+      return res.end(data);
+    }
     const pdfRoute = url.pathname.match(/^\/api\/(pdf|download)\/([0-9a-f-]{36})$/);
     if (req.method === 'GET' && pdfRoute) return await servePdf(res, pdfRoute[2], pdfRoute[1] === 'download');
     sendJson(res, 404, { error: 'Not found' });

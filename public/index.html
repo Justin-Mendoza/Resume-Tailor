@@ -3,64 +3,80 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Resume Tailor</title>
+  <meta name="theme-color" content="#f7f5f0">
+  <title>Application desk · Resume Tailor</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <main class="shell">
-    <header class="topbar">
-      <div class="brand"><span class="brand-mark">RT</span><span>Resume Tailor</span></div>
-      <span class="local-pill"><span class="dot"></span> Local workspace</span>
-    </header>
+  <a class="skip-link" href="#workspace">Skip to application</a>
+  <aside class="sidebar" aria-label="Workspace navigation">
+    <a class="brand" href="/" aria-label="Resume Tailor home"><span class="brand-mark" aria-hidden="true">rt.</span><span>Resume Tailor<span class="brand-subtitle">A personal application desk</span></span></a>
+    <div class="sidebar-section-label">WORKSPACE</div>
+    <a class="workspace-link" href="#workspace"><span aria-hidden="true">▤</span> Application desk <span class="keycap" aria-hidden="true">1</span></a>
+    <div class="sidebar-section-label workflow-label">THIS APPLICATION</div>
+    <nav class="workflow" aria-label="Application progress">
+      <a id="nav-job" href="#job-heading" data-state="current" aria-current="step"><span class="nav-number">01</span><span>The opportunity<small>Start with a job posting</small></span><span class="nav-state" aria-hidden="true"></span></a>
+      <a id="nav-analysis" href="#analysis-heading" data-state="locked" aria-disabled="true" tabindex="-1"><span class="nav-number">02</span><span>Find the overlap<small>Experience meets requirements</small></span><span class="nav-state" aria-hidden="true"></span></a>
+      <a id="nav-review" href="#changes-heading" data-state="locked" aria-disabled="true" tabindex="-1"><span class="nav-number">03</span><span>Make it yours<small>Consider each small change</small></span><span class="nav-state" aria-hidden="true"></span></a>
+      <a id="nav-output" href="#output-heading" data-state="locked" aria-disabled="true" tabindex="-1"><span class="nav-number">04</span><span>The final draft<small>One page. Ready to send.</small></span><span class="nav-state" aria-hidden="true"></span></a>
+    </nav>
+    <div class="sidebar-note"><span class="note-star" aria-hidden="true">✳</span><p>A better telling of<br>the experience you have.</p><span>Nothing invented. Always you.</span></div>
+    <details class="connection-details"><summary><span class="dot" aria-hidden="true"></span> Workspace status</summary><div id="status" class="status" role="status">Checking your workspace…</div><p id="provider-details"></p></details>
+    <div class="sidebar-footer">MADE WITH A LITTLE INTENTION <span aria-hidden="true">↗</span></div>
+  </aside>
 
-    <div class="intro">
-      <div class="eyebrow">A careful edit, for one opportunity</div>
-      <h1>Make your experience<br><em>more relevant.</em></h1>
-      <p>Choose the strongest verified resume, review every proposed adjustment, and export a one-page PDF.</p>
-    </div>
-
-    <div id="status" class="status" role="status">Checking setup…</div>
-
-    <section class="panel input-panel" aria-labelledby="job-heading">
-      <div class="section-head"><span class="step">01</span><div><h2 id="job-heading">The opportunity</h2><p>Paste the job posting you want to tailor for.</p></div></div>
-      <form id="job-form">
-        <div class="field-row">
-          <label>Job title<input id="job-title" name="jobTitle" placeholder="Software Engineer" required maxlength="120"></label>
-          <label>Company<input id="company" name="company" placeholder="Company name" required maxlength="120"></label>
-        </div>
-        <label class="wide-label">Job description<textarea id="job-description" name="jobDescription" placeholder="Paste the full job description here…" required minlength="80"></textarea></label>
-        <div class="form-foot"><span>The posting and relevant verified resume content go to Qwen for analysis and automatic refinement. PDFs and contact details stay local.</span><button id="analyze-button" type="submit">Analyze job <span aria-hidden="true">↗</span></button></div>
-      </form>
-    </section>
-
-    <section id="analysis-section" class="panel hidden" aria-labelledby="analysis-heading">
-      <div class="section-head"><span class="step">02</span><div><h2 id="analysis-heading">Alignment</h2><p>The best starting resume and its overlap with this posting.</p></div></div>
-      <div class="recommendation"><div><div class="small-label">Recommended base</div><strong id="recommended-resume"></strong></div><div><div class="small-label">Role classification</div><strong id="job-category"></strong></div></div>
-      <div class="keyword-grid">
-        <div class="keyword-box"><h3>Important in the job</h3><div id="important-keywords" class="chips"></div></div>
-        <div class="keyword-box"><h3>Already on this resume</h3><div id="matched-keywords" class="chips"></div></div>
-        <div class="keyword-box"><h3>Verified, not found in this resume</h3><div id="missing-keywords" class="chips"></div></div>
-        <div class="keyword-box"><h3>Verified, not in Skills</h3><div id="missing-skills-keywords" class="chips"></div></div>
-        <div class="keyword-box unsupported"><h3>Unsupported by verified profile</h3><div id="unsupported-keywords" class="chips"></div><p>These stay out of the resume.</p></div>
+  <div class="workspace-wrap">
+    <header class="topbar"><div class="breadcrumb"><span aria-hidden="true">▤</span> Workspace <span class="breadcrumb-divider">/</span> <strong>Application desk</strong></div><details class="how-it-works"><summary>How it works <span aria-hidden="true">?</span></summary><div class="help-popover"><strong>A few considered steps.</strong><ol><li>Add the role and its job description.</li><li>See where your verified experience fits.</li><li>Choose which changes feel right.</li><li>Preview and save your one-page resume.</li></ol><p>You approve every edit before it reaches your resume.</p></div></details></header>
+    <main id="workspace" class="shell" tabindex="-1">
+      <div class="intro">
+        <div class="page-icon" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><path d="M15 11h27l8 8v35H15z"/><path d="M42 11v9h8M23 28h19M23 34h19M23 40h12"/><path class="pen" d="m36 48 14-20 5 4-14 20-7 4zM48 31l5 4"/></svg></div>
+        <div class="eyebrow">YOUR CAREER, CONSIDERED.</div>
+        <h1>Your next chapter.</h1>
+        <p>A thoughtful resume for a role that matters.<br>Start with your experience. Find the right words.</p>
+        <div class="intro-meta"><span class="paper-tag"><span class="dot" aria-hidden="true"></span> Three verified resumes</span><span>One opportunity at a time</span></div>
+        <span class="desk-annotation" aria-hidden="true">a little more relevant,<br>a little more you.<svg viewBox="0 0 90 35" fill="none"><path d="M5 6c21 21 40 24 74 13m-8-5 9 5-5 8"/></svg></span>
       </div>
-    </section>
 
-    <section id="changes-section" class="panel hidden" aria-labelledby="changes-heading">
-      <div class="section-head"><span class="step">03</span><div><h2 id="changes-heading">Review changes</h2><p>Approve or reject each exact edit. Nothing is applied until you compile.</p></div></div>
-      <div class="refine-row"><p id="refine-status" role="status" aria-live="polite">Qwen refinement starts automatically after analysis. Verified suggestions stay available if it cannot finish.</p><button id="refine-button" class="secondary" type="button">Retry Qwen refinement</button></div>
-      <div id="analysis-warning" class="notice hidden"></div>
-      <div id="changes-list"></div>
-      <div class="compile-bar"><span id="review-count">0 of 0 reviewed</span><button id="compile-button" type="button" disabled>Compile resume <span aria-hidden="true">↗</span></button></div>
-    </section>
+      <div id="setup-notice" class="notice hidden" role="status"></div>
+      <section class="panel input-panel" aria-labelledby="job-heading">
+        <div class="section-head"><span class="step" aria-hidden="true">01</span><div><h2 id="job-heading">The opportunity</h2><p>Tell us where you’d like to go next.</p></div><span class="section-note">A fresh start</span></div>
+        <form id="job-form">
+          <div class="field-row"><label>Role<input id="job-title" name="jobTitle" placeholder="e.g. Backend Engineer" autocomplete="off" required maxlength="120"></label><label>Company<input id="company" name="company" placeholder="e.g. Notion" autocomplete="organization" required maxlength="120"></label></div>
+          <label class="wide-label" for="job-description">The job description <span>Paste the full posting</span></label>
+          <textarea id="job-description" name="jobDescription" placeholder="What are they looking for?&#10;&#10;Paste the responsibilities, requirements, and qualifications here. We’ll look for the overlap with what you’ve actually done." required minlength="80" aria-describedby="description-hint description-count"></textarea>
+          <div class="textarea-foot"><span id="description-hint">The full picture helps. Include requirements and responsibilities.</span><span id="description-count">0 words</span></div>
+          <div class="form-foot"><div class="privacy-note"><svg viewBox="0 0 16 18" aria-hidden="true" fill="none"><rect x="2" y="7" width="12" height="9" rx="2"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg><span>Your facts stay yours.<small>The posting and verified experience go to the AI provider.<br> Contact details and PDFs stay on this computer.</small></span></div><button id="analyze-button" type="submit">Find the overlap <span aria-hidden="true">↗</span></button></div>
+        </form>
+      </section>
+      <div id="starting-note" class="starting-note"><span aria-hidden="true">✧</span><p>No blank-page problem here.<br><span>We start with your verified resume and make a few careful adjustments.</span></p></div>
 
-    <section id="output-section" class="panel hidden" aria-labelledby="output-heading">
-      <div class="section-head"><span class="step">04</span><div><h2 id="output-heading">Your PDF</h2><p id="output-note">Compiled and ready to save.</p></div></div>
-      <div class="output-actions"><span id="output-filename"></span><a id="download-link" class="download" href="#">Save PDF ↓</a></div>
-      <iframe id="pdf-preview" title="Tailored resume PDF preview"></iframe>
-    </section>
-    <div id="error" class="error hidden" role="alert"></div>
-    <footer>Verified content only <span>·</span> You approve every edit <span>·</span> Stored on this computer</footer>
-  </main>
+      <section id="analysis-section" class="panel hidden" aria-labelledby="analysis-heading">
+        <div class="section-head"><span class="step" aria-hidden="true">02</span><div><h2 id="analysis-heading" tabindex="-1">Find the overlap</h2><p>A closer look at what you bring to this role.</p></div></div>
+        <div class="recommendation"><div><div class="small-label">YOUR STARTING POINT</div><strong id="recommended-resume"></strong></div><div><div class="small-label">THE ROLE</div><strong id="job-category"></strong></div></div>
+        <div class="coverage-overview" aria-label="Requirement coverage"><div><span id="exact-count">0</span><p>Explicit matches</p><small>Already in your resume</small></div><div><span id="equivalent-count">0</span><p>Equivalent matches</p><small>Same skill, different words</small></div><div><span id="gap-count">0</span><p>Remaining gaps</p><small>Related or unsupported</small></div></div>
+        <div class="subsection-head"><h3>Requirement by requirement</h3><span>Open a row to see the evidence</span></div><div id="requirement-report"></div>
+        <details class="supporting-details"><summary>Keywords &amp; verified skills <span aria-hidden="true">+</span></summary><div class="keyword-grid"><div class="keyword-box"><h3>In the job description</h3><div id="important-keywords" class="chips"></div></div><div class="keyword-box"><h3>Already covered</h3><div id="matched-keywords" class="chips"></div></div><div class="keyword-box"><h3>Verified, available to highlight</h3><div id="missing-keywords" class="chips"></div></div><div class="keyword-box"><h3>Verified, missing from Skills</h3><div id="missing-skills-keywords" class="chips"></div></div><div class="keyword-box unsupported"><h3>Not supported by your profile</h3><div id="unsupported-keywords" class="chips"></div><p>These won’t be added to your resume.</p></div></div></details>
+        <p id="coverage-note" class="footnote"></p>
+      </section>
+
+      <section id="changes-section" class="panel hidden" aria-labelledby="changes-heading">
+        <div class="section-head"><span class="step" aria-hidden="true">03</span><div><h2 id="changes-heading">Make it yours</h2><p>A few thoughtful edits. The final word is yours.</p></div></div>
+        <div class="refine-row"><span class="refine-symbol" aria-hidden="true">✳</span><p id="refine-status" role="status" aria-live="polite">Taking one more look at the suggested changes…</p><button id="refine-button" class="secondary" type="button">Take another look ↻</button></div>
+        <div id="analysis-warning" class="notice hidden"></div><div id="changes-list"></div>
+        <div class="compile-bar"><div class="review-progress"><span id="review-count" role="status" aria-live="polite">0 of 0 reviewed</span><progress id="review-progress" max="1" value="0" aria-label="Changes reviewed"></progress><small id="review-hint">Choose an option for each suggestion to continue.</small></div><button id="compile-button" type="button" disabled>Create my PDF <span aria-hidden="true">↗</span></button></div>
+      </section>
+
+      <section id="output-section" class="panel hidden" aria-labelledby="output-heading">
+        <div class="section-head"><span class="step" aria-hidden="true">04</span><div><h2 id="output-heading" tabindex="-1">The final draft</h2><p id="output-note">Your experience, thoughtfully presented.</p></div><span class="finished-mark" aria-hidden="true">✓</span></div>
+        <div class="output-actions"><div class="file-label"><span aria-hidden="true">▤</span><span id="output-filename"></span></div><a id="download-link" class="download" href="#">Save my resume <span aria-hidden="true">↓</span></a></div>
+        <iframe id="pdf-preview" title="Tailored resume PDF preview"></iframe>
+        <p class="preview-hint">One last look: check the layout and wording before you send it.</p>
+        <details class="supporting-details export-details"><summary>Behind the final draft <span aria-hidden="true">+</span></summary><pre id="export-report"></pre><div class="artifact-links"><a id="latex-link" href="#">LaTeX source <span aria-hidden="true">↗</span></a><a id="report-link" href="#">Coverage report <span aria-hidden="true">↗</span></a></div></details>
+      </section>
+      <div id="error" class="error hidden" role="alert"></div>
+      <footer><span>Resume Tailor</span><span>Real experience. Considered words. <span aria-hidden="true">✳</span></span></footer>
+    </main>
+  </div>
   <script type="module" src="/app.js"></script>
 </body>
 </html>

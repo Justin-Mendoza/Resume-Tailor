@@ -2,6 +2,19 @@ import { containsTerm, normalize } from './matcher.js';
 
 const sameSet = (a, b) => a.length === b.length && new Set(a).size === a.length && new Set(b).size === b.length && a.every(x => b.includes(x));
 const clone = value => structuredClone(value);
+const metrics = text => (text.match(/(?:[$~≈]\s*)?\d[\d,]*(?:\.\d+)?(?:\s*(?:%|\+|x|×))?/g) ?? []).sort();
+
+export function validateBulletRewrite(original, proposed, profile) {
+  if (JSON.stringify(metrics(original)) !== JSON.stringify(metrics(proposed))) return false;
+  // A verified alternative must also retain every technology explicitly named
+  // in the selected wording. Related technologies cannot replace each other.
+  return profile.skills.every(skill => {
+    const terms = [skill.label, ...(skill.aliases ?? [])];
+    if (skill.label.includes('/')) return terms.every(t => !containsTerm(original, t) || containsTerm(proposed, t));
+    return !terms.some(t => containsTerm(original, t)) || terms.some(t => containsTerm(proposed, t));
+  });
+}
+
 
 function findSelection(resume, section, id) {
   return resume[section]?.find(x => x.entryId === id);
@@ -25,6 +38,11 @@ function projectMatches(profile, selection, keyword) {
       const skill = profile.skills.find(item => item.id === id);
       return skill && [skill.label, ...(skill.aliases ?? [])].some(term => normalize(term) === normalize(keyword));
     }));
+}
+
+function entryLabel(profile, section, entryId) {
+  const entry = profile[section]?.find(item => item.id === entryId);
+  return entry?.company ?? entry?.nameVariants?.[0] ?? entryId;
 }
 
 function projectName(profile, selection) {
@@ -73,7 +91,7 @@ export function buildChange(raw, analysis, profile, resume) {
     if (!relevantIds.some(id => raw.order.indexOf(id) < sel.techSkillIds.indexOf(id))) return null;
     original = sel.techSkillIds.map(id => profile.skills.find(x => x.id === id).label).join(', ');
     proposed = raw.order.map(id => profile.skills.find(x => x.id === id).label).join(', ');
-    title = `Reorder project technologies · ${raw.targetId}`;
+    title = `Reorder project technologies · ${entryLabel(profile, raw.section, raw.targetId)}`;
     conflictKey = `tech:${raw.targetId}`;
   } else if (raw.operation === 'project_reorder' && raw.section === 'projects') {
     const projects = resume.projects;
@@ -98,7 +116,7 @@ export function buildChange(raw, analysis, profile, resume) {
     if (!relevantIds.some(id => raw.order.indexOf(id) < sel.bulletIds.indexOf(id))) return null;
     original = sel.bulletIds.map(id => `• ${bulletText(profile, raw.section, raw.targetId, id)}`).join('\n');
     proposed = raw.order.map(id => `• ${bulletText(profile, raw.section, raw.targetId, id)}`).join('\n');
-    title = `Reorder bullets · ${raw.targetId}`;
+    title = `Reorder bullets · ${entryLabel(profile, raw.section, raw.targetId)}`;
     conflictKey = `entry:${raw.section}:${raw.targetId}`;
   } else if (raw.operation === 'bullet_variant' && ['experience', 'projects'].includes(raw.section)) {
     const sel = findSelection(resume, raw.section, raw.targetId);
@@ -108,11 +126,12 @@ export function buildChange(raw, analysis, profile, resume) {
     const currentVariant = resume.variants?.[`${raw.section}:${raw.targetId}:${raw.itemId}`];
     original = currentVariant === undefined ? bullet.text : bullet.variants[currentVariant];
     proposed = bullet.variants[raw.variantIndex];
-    if (original === proposed || containsTerm(original, keyword)) return null;
-    title = `Use verified wording · ${raw.targetId}`;
+    if (original === proposed || containsTerm(original, keyword) || !validateBulletRewrite(original, proposed, profile)) return null;
+    title = `Use verified wording · ${entryLabel(profile, raw.section, raw.targetId)}`;
     conflictKey = `entry:${raw.section}:${raw.targetId}`;
   } else return null;
-  return { id: '', title, original, proposed, reason, jdKeyword: keyword, confidence, conflictKey, edit: base };
+  if (raw.original !== undefined && raw.original !== original) return null;
+  return { id: '', title, original, proposed, reason, jdKeyword: keyword, confidence, conflictKey, evidence: analysis.requirements?.find(r => normalize(r.keyword) === normalize(keyword))?.evidence ?? [], edit: base };
 }
 
 export function validateSuggestions(rawSuggestions, analysis, profile, resume) {
@@ -130,10 +149,11 @@ export function validateSuggestions(rawSuggestions, analysis, profile, resume) {
 
 // Preserve substantive, validated local edits when Qwen returns only cosmetic
 // reorders. Both inputs must already have passed buildChange/validateSuggestions.
-export function combineSuggestions(qwenChanges, existingChanges) {
+export function combineSuggestions(qwenChanges, existingChanges, analysis = {}) {
+  const priority = change => ({ high: 0, medium: 1, low: 2 })[analysis.requirements?.find(r => r.keyword === change.jdKeyword)?.priority] ?? 1;
   const rank = change => ({ skill_add: 0, bullet_variant: 1, project_reorder: 2, bullet_reorder: 3, project_tech_reorder: 4, skill_reorder: 5 })[change.edit.operation] ?? 6;
   const ordered = [...qwenChanges.map(change => ({ change, source: 0 })), ...existingChanges.map(change => ({ change, source: 1 }))]
-    .sort((a, b) => rank(a.change) - rank(b.change) || a.source - b.source);
+    .sort((a, b) => priority(a.change) - priority(b.change) || rank(a.change) - rank(b.change) || a.source - b.source);
   const seen = new Set();
   const combined = [];
   for (const { change } of ordered) {
@@ -198,6 +218,8 @@ export function fallbackSuggestions(analysis, profile, resume) {
       }
     }
   }
+  const priority = { high: 0, medium: 1, low: 2 };
+  candidates.sort((a, b) => (priority[analysis.requirements?.find(r => r.keyword === a.jdKeyword)?.priority] ?? 1) - (priority[analysis.requirements?.find(r => r.keyword === b.jdKeyword)?.priority] ?? 1));
   return validateSuggestions(candidates, analysis, profile, resume);
 }
 

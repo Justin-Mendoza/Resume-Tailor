@@ -3,6 +3,7 @@ import { mkdtemp, writeFile, readFile, copyFile, mkdir, rm, access } from 'node:
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { renderLatex } from './latex.js';
+import { validatePdfText } from './pdf-validation.js';
 
 const root = path.resolve(import.meta.dirname, '..');
 
@@ -39,12 +40,25 @@ async function pageCount(pdfPath) {
   return null;
 }
 
+async function extractPdfText(pdfPath) {
+  if (await commandExists('pdftotext')) {
+    const result = await run('pdftotext', ['-enc', 'UTF-8', pdfPath, '-'], root);
+    if (result.code === 0) return { text: result.output, engine: 'Poppler' };
+  }
+  if (process.platform === 'darwin') {
+    const script = 'ObjC.import("PDFKit"); function run(argv) { var d=$.PDFDocument.alloc.initWithURL($.NSURL.fileURLWithPath(argv[0])); return ObjC.unwrap(d.string); }';
+    const result = await run('osascript', ['-l', 'JavaScript', '-e', script, pdfPath], root);
+    if (result.code === 0) return { text: result.output, engine: 'PDFKit' };
+  }
+  throw new Error('PDF text extraction unavailable. Install Poppler (pdftotext) to validate parsing before export.');
+}
+
 export function outputFilename(name, company, jobTitle) {
   const clean = text => String(text ?? '').normalize('NFKD').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60);
   return [clean(name), clean(company), clean(jobTitle)].filter(Boolean).join('_') + '.pdf';
 }
 
-export async function compileResume(profile, resume, { company, jobTitle }) {
+export async function compileResume(profile, resume, { company, jobTitle, keywords = [] }) {
   const latex = await renderLatex(profile, resume);
   const buildDir = await mkdtemp(path.join(tmpdir(), 'resume-tailor-'));
   try {
@@ -63,6 +77,10 @@ export async function compileResume(profile, resume, { company, jobTitle }) {
     await access(pdfPath).catch(() => { throw new Error(`LaTeX exited successfully but no PDF was produced:\n${result.output.slice(-4000)}`); });
     const pages = await pageCount(pdfPath);
     if (pages !== null && pages !== 1) throw new Error(`The tailored resume is ${pages} pages. Reject a lengthening edit or adjust the local template before saving.`);
+    const extracted = await extractPdfText(pdfPath);
+    const validation = { ...validatePdfText(extracted.text, profile, resume, keywords), engine: extracted.engine, pages, layoutWarnings: result.output.split('\n').filter(line => /Overfull \\[hv]box/.test(line)) };
+    if (!validation.passed) throw new Error(`PDF parsing validation failed: ${validation.errors.join('; ')}`);
+    if (validation.layoutWarnings.length) throw new Error(`PDF layout validation failed: ${validation.layoutWarnings.join('; ')}`);
     const outputDir = path.join(root, 'output', 'pdf');
     await mkdir(outputDir, { recursive: true });
     const base = outputFilename(profile.identity.name, company, jobTitle);
@@ -74,7 +92,11 @@ export async function compileResume(profile, resume, { company, jobTitle }) {
     await copyFile(pdfPath, finalPath);
     const buffer = await readFile(finalPath);
     if (buffer.subarray(0, 4).toString() !== '%PDF') throw new Error('Compiler output is not a valid PDF');
-    return { filename, pages, path: finalPath };
+    const latexPath = finalPath.replace(/\.pdf$/, '.tex');
+    const reportPath = finalPath.replace(/\.pdf$/, '.report.json');
+    await writeFile(latexPath, latex, 'utf8');
+    await writeFile(finalPath.replace(/\.pdf$/, '.txt'), extracted.text, 'utf8');
+    return { filename, pages, path: finalPath, latexPath, reportPath, validation };
   } finally {
     await rm(buildDir, { recursive: true, force: true });
   }

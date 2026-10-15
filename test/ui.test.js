@@ -13,7 +13,13 @@ function fakeUi(fetchImpl) {
       this.children = [];
       this.listeners = new Map();
       this.dataset = {};
-      this.classList = { add() {}, remove() {}, toggle() {} };
+      const classes = new Set();
+      this.classList = {
+        add(...names) { names.forEach(name => classes.add(name)); },
+        remove(...names) { names.forEach(name => classes.delete(name)); },
+        contains(name) { return classes.has(name); },
+        toggle(name, force) { const add = force ?? !classes.has(name); if (add) classes.add(name); else classes.delete(name); }
+      };
       this.textContent = '';
       this.disabled = false;
       this.value = '';
@@ -113,5 +119,56 @@ test('a stale refinement cannot replace suggestions from a newer analysis', asyn
   finish.get('analysis-2')(response({ changes: [change('Current')], warning: '', replaced: true }));
   await tick();
   assert.equal(ui.get('changes-list').children[0].children[0].children[0].textContent, 'Current');
+  assert.ok(ui.get('changes-list').querySelectorAll('.decision input').every(input => !input.disabled));
+});
+
+const sampleChange = { id: 'change_1', title: 'Use verified wording', original: 'Before', proposed: 'After', reason: 'JD match', jdKeyword: 'Python', confidence: 0.85 };
+const sampleAnalysis = id => ({ analysisId: id, resumeTitle: 'General', analysis: { job_category: 'backend_swe', important_keywords: ['Python'], matched_keywords: ['Python'], missing_but_verified: [], missing_from_skills: [], unsupported_keywords: [] }, changes: [sampleChange], warning: '' });
+
+test('changing a decision invalidates the previous draft and returns to review', async () => {
+  const ui = fakeUi(async url => {
+    if (url === '/api/status') return response({ configured: true, keyConfigured: true, provider: 'Test' });
+    if (url === '/api/analyze') return response(sampleAnalysis('one'));
+    if (url === '/api/refine') return response({ changes: [sampleChange], replaced: false, warning: '' });
+    if (url === '/api/compile') return response({ filename: 'resume.pdf', pages: 1, previewUrl: '/pdf', downloadUrl: '/download', latexUrl: '/latex', reportUrl: '/report' });
+    throw new Error(`Unexpected URL ${url}`);
+  });
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  await tick();
+  const [approve, reject] = ui.get('changes-list').querySelectorAll('.decision input');
+  approve.listeners.get('change')();
+  await ui.get('compile-button').listeners.get('click')();
+  assert.equal(ui.get('output-section').classList.contains('hidden'), false);
+  assert.equal(ui.get('nav-output').dataset.state, 'current');
+  reject.listeners.get('change')();
+  assert.equal(ui.get('output-section').classList.contains('hidden'), true);
+  assert.equal(ui.get('nav-output').dataset.state, 'locked');
+  assert.equal(ui.get('review-progress').value, 1);
+  assert.equal(ui.get('compile-button').disabled, false);
+});
+
+test('compilation locks review choices and an old result cannot replace a new application', async () => {
+  let finishCompilation;
+  let count = 0;
+  const ui = fakeUi(async url => {
+    if (url === '/api/status') return response({ configured: true, keyConfigured: true, provider: 'Test' });
+    if (url === '/api/analyze') return response(sampleAnalysis(`analysis-${++count}`));
+    if (url === '/api/refine') return response({ changes: [sampleChange], replaced: false, warning: '' });
+    if (url === '/api/compile') return new Promise(resolve => { finishCompilation = resolve; });
+    throw new Error(`Unexpected URL ${url}`);
+  });
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  await tick();
+  ui.get('changes-list').querySelectorAll('.decision input')[0].listeners.get('change')();
+  const pending = ui.get('compile-button').listeners.get('click')();
+  assert.equal(ui.get('compile-button').disabled, true);
+  assert.ok(ui.get('changes-list').querySelectorAll('.decision input').every(input => input.disabled));
+  await ui.get('job-form').listeners.get('submit')({ preventDefault() {} });
+  await tick();
+  finishCompilation(response({ filename: 'stale.pdf', pages: 1, previewUrl: '/old-pdf', downloadUrl: '/old-download' }));
+  await pending;
+  assert.equal(ui.get('output-filename').textContent, '');
+  assert.equal(ui.get('output-section').classList.contains('hidden'), true);
+  assert.equal(ui.get('nav-output').dataset.state, 'locked');
   assert.ok(ui.get('changes-list').querySelectorAll('.decision input').every(input => !input.disabled));
 });
